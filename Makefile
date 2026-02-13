@@ -5,7 +5,7 @@ OPENALEX_LIMIT ?= 500
 .PHONY: dev test lint migrate createsuperuser ingest ingest_openalex
 .PHONY: embed_papers embed sync_to_neo4j sync_graph compute_graph_metrics verify_data_pipeline
 .PHONY: seed_demo_data seed_openalex startup_check stats_openalex build_lovable_frontend
-.PHONY: import_lovable_export
+.PHONY: import_lovable_export demo_ready
 
 dev:
 	$(COMPOSE) up --build -d
@@ -72,3 +72,10 @@ build_lovable_frontend:
 
 import_lovable_export:
 	./scripts/import_lovable_export.sh "$(ZIP)"
+
+demo_ready:
+	$(WEB_RUN) python manage.py migrate --noinput
+	$(WEB_RUN) python manage.py startup_check
+	$(WEB_RUN) python manage.py seed_demo_data --backend local
+	$(WEB_RUN) python manage.py verify_data_pipeline --query "5G RAN optimization"
+	@echo "Interview demo ready: use https://<domain>/"

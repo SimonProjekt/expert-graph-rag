@@ -29,12 +29,12 @@ TAB_GRAPH = "graph"
 TAB_ASK = "ask"
 VALID_TABS = {TAB_PAPERS, TAB_EXPERTS, TAB_GRAPH, TAB_ASK}
 DEFAULT_EXAMPLE_QUERIES = (
-    "graph retrieval compliance policy",
-    "healthcare NLP risk detection",
-    "supply chain forecasting with knowledge graphs",
-    "fraud detection explainability in finance",
-    "semantic search for legal precedents",
-    "cybersecurity incident triage automation",
+    "5G RAN optimization with AI scheduling",
+    "network slicing orchestration reliability",
+    "O-RAN xApp policy optimization",
+    "federated learning for telecom networks",
+    "core network anomaly detection",
+    "energy efficient base station control",
 )
 
 

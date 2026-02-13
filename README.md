@@ -22,6 +22,12 @@ Fast local fixture seed (no API keys required):
 docker compose exec web python manage.py seed_demo_data
 ```
 
+Interview-safe one-command setup:
+
+```bash
+make demo_ready
+```
+
 OpenAlex seed (recommended when `OPENALEX_API_KEY` is configured):
 
 ```bash
@@ -120,9 +126,10 @@ With OpenAI enabled, Ask responses are grounded and formatted as:
 ## Lovable Frontend Connection
 
 This repo is pre-wired so a Lovable-generated frontend can run on the same domain.
+For interview stability, production currently redirects `/app` to `/` (stable Django UI).
 
 - Backend API remains at `/api/*`
-- Lovable frontend is served at `/app`
+- Lovable frontend build artifacts are stored in `frontend/static`
 - Existing Django demo UI remains at `/`
 
 Build/deploy flow:
@@ -138,10 +145,10 @@ Build/deploy flow:
 ./scripts/prod_deploy.sh
 ```
 
-Set API base in Lovable frontend to:
+Set API base in Lovable frontend to empty or root-relative paths (recommended):
 
 ```bash
-VITE_API_BASE_URL=/api
+VITE_API_BASE_URL=
 ```
 
 ## Health + Integration Proof

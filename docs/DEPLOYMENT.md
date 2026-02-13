@@ -76,15 +76,19 @@ The script:
 After DNS propagation, open:
 
 - `https://<your-domain>/`
-- `https://<your-domain>/app` (Lovable frontend slot)
+- `https://<your-domain>/app` (redirects to stable UI at `/` in interview-safe mode)
 
 ## 4.1) Lovable Frontend (Optional, Same Domain)
 
 This deployment is pre-wired for a Lovable-generated frontend:
 
 - API: `https://<your-domain>/api/*`
-- Frontend app: `https://<your-domain>/app`
+- Frontend app assets: `frontend/static` (served by Caddy)
 - Existing Django UI: `https://<your-domain>/`
+
+Default production config uses interview-safe mode and redirects `/app` to `/`.
+To re-enable direct SPA serving at `/app`, replace the `/app` redirect in `Caddyfile`
+with the previous `handle_path /app* { ... }` block and redeploy.
 
 When you have exported frontend zip from Lovable, import it with:
 
