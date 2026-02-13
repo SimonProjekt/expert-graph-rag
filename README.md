@@ -32,6 +32,18 @@ Interview-safe one-command setup:
 make demo_ready
 ```
 
+For larger telecom-focused sample data (fixture + OpenAlex across all demo queries):
+
+```bash
+make seed_interview_data
+```
+
+Optional tuning:
+
+```bash
+WORKS_PER_QUERY=120 AUTHORS_PER_QUERY=60 YEARS=2021-2026 BACKEND=local make seed_interview_data
+```
+
 OpenAlex seed (recommended when `OPENALEX_API_KEY` is configured):
 
 ```bash
