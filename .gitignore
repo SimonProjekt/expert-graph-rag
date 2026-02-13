@@ -34,3 +34,9 @@ backups/
 # IDEs
 .vscode/
 .idea/
+
+# Frontend workspace
+node_modules/
+frontend/lovable-src/node_modules/
+frontend/lovable-src/.env*
+frontend/lovable-src/dist/

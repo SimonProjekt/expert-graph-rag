@@ -35,6 +35,7 @@
       fullNodes: [],
       fullEdges: [],
       nodeLookup: new Map(),
+      focusNodeId: null,
     },
   };
 
@@ -234,13 +235,17 @@
         if (!state.graph.network) {
           return;
         }
+        state.graph.focusNodeId = null;
         state.graph.network.moveTo({ position: { x: 0, y: 0 }, scale: 1, animation: true });
         state.graph.network.fit({ animation: true });
+        renderGraphData();
       });
     }
 
     if (dom.graph.nodePanelClose) {
       dom.graph.nodePanelClose.addEventListener("click", () => {
+        state.graph.focusNodeId = null;
+        renderGraphData();
         closeNodePanel();
       });
     }
@@ -409,7 +414,7 @@
 
       state.lastPayloads.papers = payload;
       renderPapers(payload);
-      applyRedaction(payload.redacted_count || 0);
+      applyRedaction(payload.hidden_count ?? payload.redacted_count ?? 0);
       renderLiveFetchStatus(payload);
     } catch (error) {
       if (isAbortError(error)) {
@@ -427,6 +432,14 @@
     const incoming = Array.isArray(payload.results) ? payload.results.slice() : [];
     const sorted = sortPapers(incoming, state.sortOrder);
     const liveFetch = payload && typeof payload === "object" ? payload.live_fetch : null;
+    const tookMs =
+      payload && typeof payload === "object" && Number.isFinite(Number(payload.took_ms))
+        ? Number(payload.took_ms)
+        : null;
+    const resultCount =
+      payload && typeof payload === "object" && Number.isFinite(Number(payload.result_count))
+        ? Number(payload.result_count)
+        : sorted.length;
 
     if (!sorted.length) {
       dom.papers.meta.textContent = "0 papers";
@@ -438,15 +451,23 @@
 
     dom.papers.empty.textContent = "No papers found for this query and clearance.";
     hideElement(dom.papers.empty);
-    dom.papers.meta.textContent = `${sorted.length} papers · sorted by ${state.sortOrder}`;
+    const timingText = tookMs !== null ? ` · ${tookMs} ms` : "";
+    dom.papers.meta.textContent = `${resultCount} papers · sorted by ${state.sortOrder}${timingText}`;
 
     dom.papers.results.innerHTML = sorted
       .map((paper) => {
         const published = paper.published_date || "n/a";
         const relevance = normalizeScore(paper.relevance_score);
+        const semantic = normalizeScore(
+          paper.score_breakdown?.semantic_relevance ?? paper.semantic_relevance_score
+        );
+        const authority = normalizeScore(paper.score_breakdown?.graph_authority);
+        const centrality = normalizeScore(paper.score_breakdown?.graph_centrality);
 
         const topicChips = asChipList(paper.topics || [], "subtle");
         const authorChips = asChipList(paper.authors || [], "subtle");
+        const whyMatched = escapeHtml(paper.why_matched || "No explanation available.");
+        const graphPath = escapeHtml(paper.graph_path || "query -> paper");
 
         return `
           <article class="card">
@@ -455,7 +476,17 @@
             <div class="paper-meta">
               <span class="pill">Published: ${escapeHtml(published)}</span>
               <span class="pill">Relevance: ${relevance.toFixed(3)}</span>
+              <span class="pill">Semantic: ${semantic.toFixed(3)}</span>
             </div>
+            <div class="score-grid" aria-label="Search score breakdown for ${escapeHtml(paper.title || "paper")}">
+              ${scoreRow("Graph authority", authority)}
+              ${scoreRow("Centrality", centrality)}
+            </div>
+            <details class="why-details">
+              <summary>Why this paper?</summary>
+              <p>${whyMatched}</p>
+              <p><strong>Path:</strong> ${graphPath}</p>
+            </details>
             <p><strong>Topics</strong></p>
             <div class="meta-list">${topicChips || '<span class="pill subtle">None</span>'}</div>
             <p><strong>Authors</strong></p>
@@ -477,8 +508,9 @@
     if (liveFetch.attempted && liveFetch.reason === "fetched") {
       const worksProcessed = Number(liveFetch.works_processed || 0);
       const papersTouched = Number(liveFetch.papers_touched || 0);
+      const durationMs = Number(liveFetch.duration_ms || 0);
       setStatus(
-        `Live OpenAlex fetch added ${worksProcessed} work(s), touching ${papersTouched} local paper record(s).`
+        `Live OpenAlex fetch added ${worksProcessed} work(s), touching ${papersTouched} local paper record(s) in ${durationMs} ms.`
       );
       return;
     }
@@ -637,6 +669,7 @@
       state.graph.fullNodes = graph.nodes;
       state.graph.fullEdges = graph.edges;
       state.graph.nodeLookup = graph.nodeLookup;
+      state.graph.focusNodeId = null;
 
       if (!graph.nodes.length) {
         dom.graph.meta.textContent = "0 nodes";
@@ -669,6 +702,8 @@
 
     const seenNodeIds = new Set();
     const seenEdges = new Set();
+    const queryId = "query:current";
+    const queryLabel = truncateLabel(state.query || "Current query", 28);
 
     function addNode(node) {
       if (seenNodeIds.has(node.id)) {
@@ -680,26 +715,61 @@
     }
 
     function addEdge(edge) {
-      const key = `${edge.from}->${edge.to}:${edge.label}`;
+      const key = edge.id || `${edge.from}->${edge.to}:${edge.label || ""}`;
       if (seenEdges.has(key)) {
         return;
       }
       seenEdges.add(key);
-      edges.push(edge);
+      edges.push({
+        ...edge,
+        id: key,
+      });
     }
+
+    addNode({
+      id: queryId,
+      label: queryLabel,
+      group: "query",
+      title: `Query: ${escapeHtml(state.query || "n/a")}`,
+      details: {
+        Type: "Query",
+        Query: state.query || "n/a",
+      },
+    });
 
     results.forEach((paper, index) => {
       const paperId = `paper:${paper.paper_id || index + 1}`;
+      const hop = Number.isFinite(Number(paper.graph_hop_distance))
+        ? Number(paper.graph_hop_distance)
+        : 0;
+      const pathLabel = paper.graph_path || `query -> paper:${paper.paper_id || "n/a"}`;
+      const whyMatched = paper.why_matched || "No explanation available.";
+      const source = paper.source || "semantic";
+
       addNode({
         id: paperId,
         label: paper.title || "Untitled paper",
         group: "paper",
+        title: `Paper: ${escapeHtml(paper.title || "Untitled")}`,
         details: {
           Type: "Paper",
           Title: paper.title || "Untitled",
           Published: paper.published_date || "n/a",
-          Relevance: Number(normalizeScore(paper.relevance_score)).toFixed(3),
+          Score: Number(normalizeScore(paper.relevance_score)).toFixed(3),
+          Source: source,
+          Hop: String(hop),
+          Why: whyMatched,
+          Path: pathLabel,
         },
+      });
+
+      addEdge({
+        id: `${queryId}->${paperId}:QUERY_MATCH`,
+        from: queryId,
+        to: paperId,
+        label: hop > 0 ? `HOP ${hop}` : "MATCH",
+        title: pathLabel,
+        dashes: hop > 0,
       });
 
       (paper.authors || []).forEach((author) => {
@@ -708,6 +778,7 @@
           id: authorId,
           label: author,
           group: "author",
+          title: `Author: ${escapeHtml(author)}`,
           details: {
             Type: "Author",
             Name: author,
@@ -722,6 +793,7 @@
           id: topicId,
           label: topic,
           group: "topic",
+          title: `Topic: ${escapeHtml(topic)}`,
           details: {
             Type: "Topic",
             Name: topic,
@@ -742,13 +814,14 @@
     }
 
     const filtered = filteredGraphData();
+    const styled = applyGraphPathHighlight(filtered);
 
     if (!state.graph.network) {
       state.graph.network = new window.vis.Network(
         dom.graph.canvas,
         {
-          nodes: new window.vis.DataSet(filtered.nodes),
-          edges: new window.vis.DataSet(filtered.edges),
+          nodes: new window.vis.DataSet(styled.nodes),
+          edges: new window.vis.DataSet(styled.edges),
         },
         {
           autoResize: true,
@@ -779,6 +852,7 @@
             width: 1.1,
           },
           groups: {
+            query: { color: { background: "#6d28d9" } },
             author: { color: { background: "#ef9d27" } },
             paper: { color: { background: "#2f7dd3" } },
             topic: { color: { background: "#16a073" } },
@@ -788,14 +862,20 @@
 
       state.graph.network.on("click", (params) => {
         if (!params.nodes || !params.nodes.length) {
+          state.graph.focusNodeId = null;
+          renderGraphData();
           closeNodePanel();
           return;
         }
         const node = state.graph.nodeLookup.get(params.nodes[0]);
         if (!node) {
+          state.graph.focusNodeId = null;
+          renderGraphData();
           closeNodePanel();
           return;
         }
+        state.graph.focusNodeId = node.id;
+        renderGraphData();
         openNodePanel(node);
       });
 
@@ -804,8 +884,8 @@
     }
 
     state.graph.network.setData({
-      nodes: new window.vis.DataSet(filtered.nodes),
-      edges: new window.vis.DataSet(filtered.edges),
+      nodes: new window.vis.DataSet(styled.nodes),
+      edges: new window.vis.DataSet(styled.edges),
     });
     state.graph.network.fit({ animation: true });
   }
@@ -825,6 +905,7 @@
     if (showTopics) {
       allowed.add("topic");
     }
+    allowed.add("query");
 
     const nodes = state.graph.fullNodes.filter((node) => allowed.has(node.group));
     const nodeIds = new Set(nodes.map((node) => node.id));
@@ -835,9 +916,151 @@
     return { nodes, edges };
   }
 
+  function applyGraphPathHighlight(filtered) {
+    const focusNodeId = state.graph.focusNodeId;
+    if (!focusNodeId) {
+      return {
+        nodes: filtered.nodes.map((node) => ({
+          ...node,
+          color: graphNodeColor(node.group, false, false),
+        })),
+        edges: filtered.edges.map((edge) => ({
+          ...edge,
+          color: { color: "#4a5568", opacity: 0.9 },
+        })),
+      };
+    }
+
+    const path = computePathToQuery({
+      targetNodeId: focusNodeId,
+      edges: filtered.edges,
+    });
+
+    const highlightedNodeIds = path ? path.nodeIds : new Set([focusNodeId]);
+    const highlightedEdgeIds = path ? path.edgeIds : new Set();
+
+    const nodes = filtered.nodes.map((node) => {
+      const highlighted = highlightedNodeIds.has(node.id);
+      const muted = !highlighted;
+      return {
+        ...node,
+        color: graphNodeColor(node.group, highlighted, muted),
+      };
+    });
+
+    const edges = filtered.edges.map((edge) => {
+      const highlighted = highlightedEdgeIds.has(edge.id);
+      return {
+        ...edge,
+        width: highlighted ? 3 : 1.1,
+        color: highlighted
+          ? { color: "#c2410c", opacity: 1.0 }
+          : { color: "#9aa5b1", opacity: 0.45 },
+      };
+    });
+
+    return { nodes, edges };
+  }
+
+  function computePathToQuery({ targetNodeId, edges }) {
+    const queryNodeId = "query:current";
+    if (!targetNodeId) {
+      return null;
+    }
+    if (targetNodeId === queryNodeId) {
+      return {
+        nodeIds: new Set([queryNodeId]),
+        edgeIds: new Set(),
+      };
+    }
+
+    const adjacency = new Map();
+    edges.forEach((edge) => {
+      const left = adjacency.get(edge.from) || [];
+      left.push({ next: edge.to, edgeId: edge.id });
+      adjacency.set(edge.from, left);
+
+      const right = adjacency.get(edge.to) || [];
+      right.push({ next: edge.from, edgeId: edge.id });
+      adjacency.set(edge.to, right);
+    });
+
+    const queue = [queryNodeId];
+    const visited = new Set([queryNodeId]);
+    const parentByNode = new Map();
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) {
+        continue;
+      }
+      if (current === targetNodeId) {
+        break;
+      }
+
+      const neighbors = adjacency.get(current) || [];
+      neighbors.forEach((neighbor) => {
+        if (visited.has(neighbor.next)) {
+          return;
+        }
+        visited.add(neighbor.next);
+        parentByNode.set(neighbor.next, {
+          prev: current,
+          edgeId: neighbor.edgeId,
+        });
+        queue.push(neighbor.next);
+      });
+    }
+
+    if (!visited.has(targetNodeId)) {
+      return null;
+    }
+
+    const nodeIds = new Set([targetNodeId]);
+    const edgeIds = new Set();
+    let cursor = targetNodeId;
+    while (cursor !== queryNodeId) {
+      const step = parentByNode.get(cursor);
+      if (!step) {
+        break;
+      }
+      edgeIds.add(step.edgeId);
+      nodeIds.add(step.prev);
+      cursor = step.prev;
+    }
+    return { nodeIds, edgeIds };
+  }
+
+  function graphNodeColor(group, highlighted, muted) {
+    if (muted) {
+      return { background: "#e2e8f0", border: "#cbd5e1" };
+    }
+    if (group === "query") {
+      return highlighted
+        ? { background: "#6d28d9", border: "#4c1d95" }
+        : { background: "#8b5cf6", border: "#6d28d9" };
+    }
+    if (group === "author") {
+      return highlighted
+        ? { background: "#ef9d27", border: "#b45309" }
+        : { background: "#f4b860", border: "#c47d16" };
+    }
+    if (group === "paper") {
+      return highlighted
+        ? { background: "#2f7dd3", border: "#1e40af" }
+        : { background: "#64a3e8", border: "#2f7dd3" };
+    }
+    return highlighted
+      ? { background: "#16a073", border: "#047857" }
+      : { background: "#52c39d", border: "#16a073" };
+  }
+
   function applyGraphFilters() {
     if (!state.graph.fullNodes.length) {
       return;
+    }
+    if (state.graph.focusNodeId && !state.graph.nodeLookup.has(state.graph.focusNodeId)) {
+      state.graph.focusNodeId = null;
     }
     renderGraphData();
   }
@@ -1304,6 +1527,20 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "unknown";
+  }
+
+  function truncateLabel(value, maxChars) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return "";
+    }
+    if (text.length <= maxChars) {
+      return text;
+    }
+    if (maxChars <= 3) {
+      return text.slice(0, maxChars);
+    }
+    return `${text.slice(0, maxChars - 3)}...`;
   }
 
   function debounce(fn, waitMs) {

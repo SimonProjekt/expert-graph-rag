@@ -4,6 +4,8 @@ import json
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
+from django.test import override_settings
+
 from apps.documents.openalex_client import OpenAlexClient
 
 
@@ -57,3 +59,40 @@ def test_openalex_client_includes_auth_and_select_params() -> None:
     assert query["cursor"] == ["*"]
     assert query["select"] == ["id,display_name"]
 
+
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "openalex-client-cache-tests",
+        }
+    }
+)
+def test_openalex_client_uses_cache_for_identical_requests() -> None:
+    call_count = 0
+
+    def fake_open(_request, timeout):  # noqa: ANN001
+        nonlocal call_count
+        _ = timeout
+        call_count += 1
+        return FakeHTTPResponse({"meta": {"next_cursor": None}, "results": []})
+
+    client = OpenAlexClient(
+        base_url="https://api.openalex.org",
+        api_key="oa-key",
+        mailto="dev@example.com",
+        timeout_seconds=2,
+        max_retries=1,
+        backoff_seconds=0,
+        rate_limit_rps=1000,
+        page_size=200,
+        cache_enabled=True,
+        cache_ttl_seconds=60,
+    )
+
+    with patch("apps.documents.openalex_client.urlopen", side_effect=fake_open):
+        first = client.get_works(query="graph rag", per_page=10, cursor="*")
+        second = client.get_works(query="graph rag", per_page=10, cursor="*")
+
+    assert first == second
+    assert call_count == 1

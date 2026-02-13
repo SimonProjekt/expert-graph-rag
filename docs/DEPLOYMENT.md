@@ -76,6 +76,30 @@ The script:
 After DNS propagation, open:
 
 - `https://<your-domain>/`
+- `https://<your-domain>/app` (Lovable frontend slot)
+
+## 4.1) Lovable Frontend (Optional, Same Domain)
+
+This deployment is pre-wired for a Lovable-generated frontend:
+
+- API: `https://<your-domain>/api/*`
+- Frontend app: `https://<your-domain>/app`
+- Existing Django UI: `https://<your-domain>/`
+
+When you have exported frontend zip from Lovable, import it with:
+
+```bash
+./scripts/import_lovable_export.sh /path/to/lovable-export.zip
+```
+
+Then build and deploy:
+
+```bash
+./scripts/build_lovable_frontend.sh
+./scripts/prod_deploy.sh
+```
+
+The deploy script auto-builds frontend assets when `frontend/lovable-src/package.json` exists.
 
 ## 5) Load Demo Data
 

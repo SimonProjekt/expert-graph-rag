@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from django.test import override_settings
 
+from apps.api.llm import OpenAIAnswerService
 from apps.documents.models import (
     Author,
     Authorship,
@@ -101,6 +102,10 @@ def test_ask_fallback_mode_returns_extractive_answer_with_citations(
     payload = response.json()
 
     assert payload["answer"]
+    assert "1. Concise answer" in payload["answer"]
+    assert "2. Evidence bullets" in payload["answer"]
+    assert "3. Citations" in payload["answer"]
+    assert "4. Suggested follow-up questions" in payload["answer"]
     assert "[1]" in payload["answer"]
     assert len(payload["citations"]) >= 1
     assert any(citation["redacted"] for citation in payload["citations"])
@@ -145,35 +150,48 @@ def test_ask_openai_mode_calls_server_side_llm_and_returns_citations(
         embedding=query_vector,
     )
 
+    llm_output = (
+        "1. Concise answer\n"
+        "Use grounded retrieval [1].\n\n"
+        "2. Evidence bullets\n"
+        "- The top chunk explains grounded retrieval [1].\n\n"
+        "3. Citations\n"
+        "- [1] paper:ask:ai:001\n\n"
+        "4. Suggested follow-up questions\n"
+        "- Which expert should I contact?\n"
+    )
+    llm_mock = patch.object(OpenAIAnswerService, "generate_answer", return_value=llm_output)
+
     with patch("apps.api.ask.get_embedding_backend", return_value=StaticBackend(query_vector)):
         with patch(
             "apps.api.experts.get_embedding_backend",
             return_value=StaticBackend(query_vector),
         ):
             with patch(
-                "apps.api.ask.AskService._generate_openai_answer",
-                return_value="Grounded answer [1]",
-            ) as openai_answer_mock:
-                with patch(
-                    "apps.api.ask.AskService._build_extractive_answer",
-                    return_value="Fallback answer [1]",
-                ) as fallback_mock:
-                    response = client.get(
-                        "/api/ask",
-                        {
-                            "query": "how to do ai retrieval",
-                            "clearance": SecurityLevel.PUBLIC,
-                        },
-                    )
+                "apps.api.ask.OpenAIAnswerService.from_settings",
+                return_value=OpenAIAnswerService(api_key="test-openai-key", model="gpt-4o-mini"),
+            ):
+                with llm_mock as generate_answer_mock:
+                    with patch(
+                        "apps.api.ask.AskService._build_extractive_answer",
+                        return_value="Fallback answer [1]",
+                    ) as fallback_mock:
+                        response = client.get(
+                            "/api/ask",
+                            {
+                                "query": "how to do ai retrieval",
+                                "clearance": SecurityLevel.PUBLIC,
+                            },
+                        )
 
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["answer"] == "Grounded answer [1]"
+    assert payload["answer"] == llm_output.strip()
     assert payload["citations"]
     assert payload["citations"][0]["paper_title"] == "AI Retrieval Guide"
     assert len(payload["recommended_experts"]) == 1
     assert payload["recommended_experts"][0]["name"] == "AI Expert"
 
-    openai_answer_mock.assert_called_once()
+    generate_answer_mock.assert_called_once()
     fallback_mock.assert_not_called()

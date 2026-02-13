@@ -20,6 +20,7 @@
   --author: #ef9d27;
   --paper: #2f7dd3;
   --topic: #16a073;
+  --query: #6d28d9;
 }
 
 * {
@@ -329,6 +330,10 @@ select {
 
 .legend-author {
   background: var(--author);
+}
+
+.legend-query {
+  background: var(--query);
 }
 
 .legend-paper {

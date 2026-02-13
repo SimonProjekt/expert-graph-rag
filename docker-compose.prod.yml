@@ -114,6 +114,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - static_data:/srv/static:ro
+      - ./frontend/static:/srv/frontend:ro
     depends_on:
       - web
     networks:

@@ -15,13 +15,21 @@
 	#	{$BASIC_AUTH_USER} {$BASIC_AUTH_PASSWORD_HASH}
 	# }
 
-	@health path /healthz
-	handle @health {
+	@backend path /api/* /healthz /health /admin* /debug/*
+	handle @backend {
 		reverse_proxy web:8000
 	}
 
 	handle_path /static/* {
 		root * /srv/static
+		file_server
+	}
+
+	# Optional external frontend (e.g. Lovable export) mounted at /srv/frontend
+	# Served at /app while keeping Django UI available at /
+	handle_path /app* {
+		root * /srv/frontend
+		try_files {path} /index.html
 		file_server
 	}
 

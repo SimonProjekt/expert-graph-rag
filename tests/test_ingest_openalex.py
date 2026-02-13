@@ -92,6 +92,7 @@ def _openalex_payload(*, title: str) -> dict:
     OPENALEX_MAX_RETRIES=1,
     OPENALEX_BACKOFF_SECONDS=0,
     OPENALEX_RATE_LIMIT_RPS=1000,
+    OPENALEX_CACHE_ENABLED=False,
     OPENALEX_SECURITY_LEVEL_RATIOS=(0, 0, 100),
 )
 def test_ingest_openalex_upserts_and_tracks_runs() -> None:
@@ -150,6 +151,7 @@ def test_ingest_openalex_upserts_and_tracks_runs() -> None:
     OPENALEX_MAX_RETRIES=0,
     OPENALEX_BACKOFF_SECONDS=0,
     OPENALEX_RATE_LIMIT_RPS=1000,
+    OPENALEX_CACHE_ENABLED=False,
     OPENALEX_SECURITY_LEVEL_RATIOS=(70, 20, 10),
 )
 def test_ingest_openalex_marks_failed_run_on_http_error() -> None:
@@ -172,6 +174,7 @@ def test_ingest_openalex_marks_failed_run_on_http_error() -> None:
     OPENALEX_MAX_RETRIES=2,
     OPENALEX_BACKOFF_SECONDS=1,
     OPENALEX_RATE_LIMIT_RPS=1000,
+    OPENALEX_CACHE_ENABLED=False,
 )
 def test_openalex_client_retries_with_backoff() -> None:
     client = OpenAlexClient(

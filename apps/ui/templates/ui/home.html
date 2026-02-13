@@ -27,14 +27,14 @@
 
       <div class="mode-badges" aria-label="Demo Mode Status">
         {% if llm_enabled %}
-          <span class="badge status-ok">Demo Mode (LLM Enabled)</span>
+          <span class="badge status-ok">LLM Enabled</span>
         {% else %}
-          <span class="badge status-warn">Demo Mode (LLM Disabled)</span>
+          <span class="badge status-warn">LLM Not Configured</span>
         {% endif %}
         {% if openalex_live_fetch_enabled %}
-          <span class="badge status-ok">OpenAlex Live Fetch: On</span>
+          <span class="badge status-ok">Live OpenAlex enabled</span>
         {% else %}
-          <span class="badge badge-outline">OpenAlex Live Fetch: Off</span>
+          <span class="badge badge-outline">Local results only</span>
         {% endif %}
         <span class="badge badge-outline" id="clearance-badge">Clearance: {{ clearance }}</span>
         <span class="badge badge-outline">Role: {{ session_role }}</span>
@@ -104,6 +104,7 @@
           </div>
 
           <div class="legend" aria-label="Graph legend">
+            <span><i class="legend-dot legend-query"></i>Query</span>
             <span><i class="legend-dot legend-author"></i>Author</span>
             <span><i class="legend-dot legend-paper"></i>Paper</span>
             <span><i class="legend-dot legend-topic"></i>Topic</span>

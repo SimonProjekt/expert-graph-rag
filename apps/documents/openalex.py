@@ -555,6 +555,8 @@ class OpenAlexReadThroughService:
                 backoff_seconds=settings.OPENALEX_BACKOFF_SECONDS,
                 rate_limit_rps=settings.OPENALEX_RATE_LIMIT_RPS,
                 page_size=settings.OPENALEX_PAGE_SIZE,
+                cache_enabled=settings.OPENALEX_CACHE_ENABLED,
+                cache_ttl_seconds=settings.OPENALEX_CACHE_TTL_SECONDS,
             )
             service = OpenAlexIngestionService(
                 client=client,
@@ -677,4 +679,3 @@ class OpenAlexReadThroughService:
         run.finished_at = timezone.now()
         run.error_message = error_message[:5000]
         run.save(update_fields=["status", "finished_at", "error_message"])
-

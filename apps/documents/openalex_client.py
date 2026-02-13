@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import random
@@ -12,6 +13,8 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,8 @@ class OpenAlexClient:
         backoff_seconds: int,
         rate_limit_rps: int,
         page_size: int,
+        cache_enabled: bool = True,
+        cache_ttl_seconds: int = 900,
     ) -> None:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be greater than 0.")
@@ -106,6 +111,8 @@ class OpenAlexClient:
             raise ValueError("backoff_seconds must be zero or greater.")
         if page_size <= 0:
             raise ValueError("page_size must be greater than 0.")
+        if cache_ttl_seconds < 0:
+            raise ValueError("cache_ttl_seconds must be 0 or greater.")
 
         api_key_value = api_key.strip()
         if not api_key_value:
@@ -119,6 +126,8 @@ class OpenAlexClient:
         self._backoff_seconds = float(backoff_seconds)
         self._page_size = page_size
         self._rate_limiter = RateLimiter(rate_limit_rps)
+        self._cache_enabled = cache_enabled
+        self._cache_ttl_seconds = cache_ttl_seconds
 
     def iter_works(
         self,
@@ -255,6 +264,12 @@ class OpenAlexClient:
             query_params["per-page"] = str(self._page_size)
 
         url = f"{self._base_url}/{path.lstrip('/')}?{urlencode(query_params)}"
+        cache_key = self._cache_key(url)
+        if self._cache_enabled:
+            cached_payload = cache.get(cache_key)
+            if isinstance(cached_payload, dict):
+                return cached_payload
+
         request = Request(
             url=url,
             headers={
@@ -271,6 +286,8 @@ class OpenAlexClient:
                 payload = json.loads(raw_body)
                 if not isinstance(payload, dict):
                     raise OpenAlexClientError("OpenAlex returned non-object JSON payload.")
+                if self._cache_enabled and self._cache_ttl_seconds > 0:
+                    cache.set(cache_key, payload, timeout=self._cache_ttl_seconds)
                 return payload
             except HTTPError as exc:
                 if self._should_retry(status_code=exc.code, attempt=attempt):
@@ -487,6 +504,11 @@ class OpenAlexClient:
     def _should_retry(self, *, status_code: int, attempt: int) -> bool:
         retryable = {429, 500, 502, 503, 504}
         return attempt < self._max_retries and status_code in retryable
+
+    @staticmethod
+    def _cache_key(url: str) -> str:
+        digest = hashlib.sha1(url.encode("utf-8")).hexdigest()
+        return f"openalex:{digest}"
 
     @staticmethod
     def _as_non_empty_string(value: Any) -> str | None:

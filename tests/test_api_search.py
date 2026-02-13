@@ -86,6 +86,9 @@ def test_search_hides_confidential_content_for_public_clearance(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["redacted_count"] >= 1
+    assert payload["hidden_count"] == payload["redacted_count"]
+    assert payload["result_count"] == len(payload["results"])
+    assert isinstance(payload["took_ms"], int)
     assert len(payload["results"]) == 1
     assert payload["results"][0]["title"] == public_paper.title
     assert payload["results"][0]["authors"] == ["Public Author"]
@@ -161,6 +164,9 @@ def test_search_hides_confidential_content_for_internal_clearance(client) -> Non
     assert response.status_code == 200
     payload = response.json()
     assert payload["redacted_count"] >= 1
+    assert payload["hidden_count"] == payload["redacted_count"]
+    assert payload["result_count"] == len(payload["results"])
+    assert isinstance(payload["took_ms"], int)
     assert len(payload["results"]) == 1
     assert payload["results"][0]["title"] == internal_paper.title
     assert payload["results"][0]["authors"] == ["Internal Author"]
@@ -229,5 +235,89 @@ def test_search_read_through_fetch_can_backfill_local_results(client) -> None:
     payload = response.json()
     assert payload["results"]
     assert payload["results"][0]["title"] == "Live Fetch Paper"
+    assert payload["hidden_count"] == payload["redacted_count"]
+    assert payload["result_count"] == len(payload["results"])
     assert payload["live_fetch"]["attempted"] is True
     assert payload["live_fetch"]["reason"] == "fetched"
+
+
+@pytest.mark.django_db
+@override_settings(
+    SEARCH_MAX_CHUNK_SCAN=1,
+    SEARCH_GRAPH_SEED_PAPERS=1,
+    SEARCH_GRAPH_EXPANSION_LIMIT=10,
+    SEARCH_GRAPH_HOP_LIMIT=2,
+    OPENALEX_LIVE_FETCH=False,
+)
+def test_search_graph_expansion_returns_connected_papers_with_explainability(client) -> None:
+    topic = Topic.objects.create(name="Knowledge Graph", external_id="topic:kg:001")
+    author_a = Author.objects.create(
+        name="Author A",
+        external_id="author:graph:001",
+        institution_name="Graph Labs",
+    )
+    author_b = Author.objects.create(
+        name="Author B",
+        external_id="author:graph:002",
+        institution_name="Graph Labs",
+    )
+
+    seed_paper = Paper.objects.create(
+        title="Semantic Retrieval for Graph RAG",
+        abstract="Strong semantic match.",
+        external_id="paper:graph:seed:001",
+        security_level=SecurityLevel.PUBLIC,
+    )
+    expanded_paper = Paper.objects.create(
+        title="Connected Topic Expansion for Expert Discovery",
+        abstract="Lower semantic match but graph-connected.",
+        external_id="paper:graph:expanded:001",
+        security_level=SecurityLevel.PUBLIC,
+    )
+
+    Authorship.objects.create(author=author_a, paper=seed_paper, author_order=1)
+    Authorship.objects.create(author=author_b, paper=expanded_paper, author_order=1)
+    PaperTopic.objects.create(paper=seed_paper, topic=topic)
+    PaperTopic.objects.create(paper=expanded_paper, topic=topic)
+
+    query_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Embedding.objects.create(
+        paper=seed_paper,
+        chunk_id=0,
+        text_chunk="Semantic retrieval graph rag",
+        embedding=query_vector,
+    )
+    Embedding.objects.create(
+        paper=expanded_paper,
+        chunk_id=0,
+        text_chunk="Connected expansion techniques",
+        embedding=[0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    )
+
+    with patch("apps.api.services.get_embedding_backend", return_value=StaticBackend(query_vector)):
+        response = client.get(
+            "/api/search",
+            {
+                "query": "graph rag expansion",
+                "clearance": SecurityLevel.PUBLIC,
+                "page": 1,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    title_to_result = {row["title"]: row for row in payload["results"]}
+    assert seed_paper.title in title_to_result
+    assert expanded_paper.title in title_to_result
+
+    expanded = title_to_result[expanded_paper.title]
+    assert expanded["source"] in {"graph_hop_1", "graph_hop_2"}
+    assert expanded["graph_hop_distance"] in {1, 2}
+    assert "Ranked because" in expanded["why_matched"]
+    assert "query -> seed_paper:" in expanded["graph_path"]
+    assert set(expanded["score_breakdown"].keys()) == {
+        "semantic_relevance",
+        "graph_authority",
+        "graph_centrality",
+    }

@@ -169,11 +169,25 @@ LOCAL_EMBEDDING_MODEL = get_env(
 )
 OPENAI_API_KEY = get_env("OPENAI_API_KEY", default="")
 OPENAI_EMBEDDING_MODEL = get_env("OPENAI_EMBEDDING_MODEL", default="text-embedding-3-small")
+OPENAI_MODEL = get_env(
+    "OPENAI_MODEL",
+    default=get_env("OPENAI_ANSWER_MODEL", default="gpt-4o-mini"),
+)
+OPENAI_BASE_URL = get_env("OPENAI_BASE_URL", default="").strip()
+try:
+    OPENAI_TEMPERATURE = float(get_env("OPENAI_TEMPERATURE", default="0.1"))
+except ValueError as exc:
+    raise ImproperlyConfigured("OPENAI_TEMPERATURE must be a valid float.") from exc
+if OPENAI_TEMPERATURE < 0 or OPENAI_TEMPERATURE > 2:
+    raise ImproperlyConfigured("OPENAI_TEMPERATURE must be between 0 and 2.")
 
 SEARCH_PAGE_SIZE = get_int("SEARCH_PAGE_SIZE", default=10)
 SEARCH_SCAN_BATCH_SIZE = get_int("SEARCH_SCAN_BATCH_SIZE", default=200)
 SEARCH_MAX_CHUNK_SCAN = get_int("SEARCH_MAX_CHUNK_SCAN", default=2000)
 SEARCH_SNIPPET_MAX_CHARS = get_int("SEARCH_SNIPPET_MAX_CHARS", default=220)
+SEARCH_GRAPH_SEED_PAPERS = get_int("SEARCH_GRAPH_SEED_PAPERS", default=8)
+SEARCH_GRAPH_EXPANSION_LIMIT = get_int("SEARCH_GRAPH_EXPANSION_LIMIT", default=40)
+SEARCH_GRAPH_HOP_LIMIT = get_int("SEARCH_GRAPH_HOP_LIMIT", default=2)
 if SEARCH_PAGE_SIZE <= 0:
     raise ImproperlyConfigured("SEARCH_PAGE_SIZE must be greater than 0.")
 if SEARCH_SCAN_BATCH_SIZE <= 0:
@@ -182,6 +196,12 @@ if SEARCH_MAX_CHUNK_SCAN <= 0:
     raise ImproperlyConfigured("SEARCH_MAX_CHUNK_SCAN must be greater than 0.")
 if SEARCH_SNIPPET_MAX_CHARS <= 0:
     raise ImproperlyConfigured("SEARCH_SNIPPET_MAX_CHARS must be greater than 0.")
+if SEARCH_GRAPH_SEED_PAPERS <= 0:
+    raise ImproperlyConfigured("SEARCH_GRAPH_SEED_PAPERS must be greater than 0.")
+if SEARCH_GRAPH_EXPANSION_LIMIT < 0:
+    raise ImproperlyConfigured("SEARCH_GRAPH_EXPANSION_LIMIT must be 0 or greater.")
+if SEARCH_GRAPH_HOP_LIMIT not in {1, 2}:
+    raise ImproperlyConfigured("SEARCH_GRAPH_HOP_LIMIT must be 1 or 2.")
 
 EXPERTS_TOP_EXPERTS = get_int("EXPERTS_TOP_EXPERTS", default=10)
 EXPERTS_TOP_PAPERS = get_int("EXPERTS_TOP_PAPERS", default=3)
@@ -210,18 +230,22 @@ if ASK_MAX_CHUNK_SCAN <= 0:
 if ASK_FALLBACK_SENTENCE_COUNT <= 0:
     raise ImproperlyConfigured("ASK_FALLBACK_SENTENCE_COUNT must be greater than 0.")
 
-OPENAI_ANSWER_MODEL = get_env("OPENAI_ANSWER_MODEL", default="gpt-4o-mini")
+OPENAI_ANSWER_MODEL = OPENAI_MODEL
 
 LOG_LEVEL = get_env("LOG_LEVEL", default="INFO")
 
 OPENALEX_BASE_URL = get_env("OPENALEX_BASE_URL", default="https://api.openalex.org")
 OPENALEX_API_KEY = get_env("OPENALEX_API_KEY", default="")
-OPENALEX_MAILTO = get_env("OPENALEX_MAILTO", default="")
+OPENALEX_EMAIL = get_env("OPENALEX_EMAIL", default="")
+OPENALEX_MAILTO = get_env("OPENALEX_MAILTO", default=OPENALEX_EMAIL)
 OPENALEX_PAGE_SIZE = get_int("OPENALEX_PAGE_SIZE", default=200)
 OPENALEX_HTTP_TIMEOUT_SECONDS = get_int("OPENALEX_HTTP_TIMEOUT_SECONDS", default=15)
 OPENALEX_MAX_RETRIES = get_int("OPENALEX_MAX_RETRIES", default=3)
 OPENALEX_BACKOFF_SECONDS = get_int("OPENALEX_BACKOFF_SECONDS", default=1)
-OPENALEX_RATE_LIMIT_RPS = get_int("OPENALEX_RATE_LIMIT_RPS", default=5)
+OPENALEX_RATE_LIMIT_RPS = get_int(
+    "OPENALEX_RATE_LIMIT_PER_SEC",
+    default=get_int("OPENALEX_RATE_LIMIT_RPS", default=5),
+)
 OPENALEX_SECURITY_LEVEL_RATIOS = _parse_openalex_security_level_ratios(
     get_env("OPENALEX_SECURITY_LEVEL_RATIOS", default="70,20,10")
 )
@@ -229,6 +253,8 @@ OPENALEX_LIVE_FETCH = get_bool("OPENALEX_LIVE_FETCH", default=True)
 OPENALEX_LIVE_MIN_RESULTS = get_int("OPENALEX_LIVE_MIN_RESULTS", default=10)
 OPENALEX_LIVE_FETCH_LIMIT = get_int("OPENALEX_LIVE_FETCH_LIMIT", default=40)
 OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS = get_int("OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS", default=900)
+OPENALEX_CACHE_ENABLED = get_bool("OPENALEX_CACHE_ENABLED", default=True)
+OPENALEX_CACHE_TTL_SECONDS = get_int("OPENALEX_CACHE_TTL_SECONDS", default=900)
 
 if OPENALEX_PAGE_SIZE <= 0:
     raise ImproperlyConfigured("OPENALEX_PAGE_SIZE must be greater than 0.")
@@ -246,6 +272,8 @@ if OPENALEX_LIVE_FETCH_LIMIT <= 0:
     raise ImproperlyConfigured("OPENALEX_LIVE_FETCH_LIMIT must be greater than 0.")
 if OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS < 0:
     raise ImproperlyConfigured("OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS must be 0 or greater.")
+if OPENALEX_CACHE_TTL_SECONDS < 0:
+    raise ImproperlyConfigured("OPENALEX_CACHE_TTL_SECONDS must be 0 or greater.")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

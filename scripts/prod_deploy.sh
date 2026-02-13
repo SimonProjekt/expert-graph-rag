@@ -62,6 +62,13 @@ else
 	echo "Not a git checkout; skipping git pull."
 fi
 
+if [[ -f "$ROOT_DIR/frontend/lovable-src/package.json" ]]; then
+	echo "Detected frontend/lovable-src project. Building frontend static assets..."
+	"$ROOT_DIR/scripts/build_lovable_frontend.sh"
+else
+	echo "No frontend/lovable-src project detected. Keeping existing frontend/static assets."
+fi
+
 echo "Building production images..."
 compose build
 

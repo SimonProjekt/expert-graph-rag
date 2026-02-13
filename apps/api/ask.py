@@ -10,6 +10,7 @@ from django.db.models import QuerySet
 from pgvector.django import CosineDistance
 
 from apps.api.experts import ExpertRankingService
+from apps.api.llm import LLMServiceError, OpenAIAnswerService
 from apps.documents.embedding_backends import EmbeddingBackendError, get_embedding_backend
 from apps.documents.models import Embedding, SearchAudit, SecurityLevel
 
@@ -49,7 +50,7 @@ class AskService:
         top_k: int | None = None,
         max_chunk_scan: int | None = None,
         fallback_sentence_count: int | None = None,
-        openai_model: str | None = None,
+        llm_service: OpenAIAnswerService | None = None,
     ) -> None:
         self._top_k = top_k if top_k is not None else settings.ASK_TOP_K
         self._max_chunk_scan = (
@@ -60,9 +61,7 @@ class AskService:
             if fallback_sentence_count is not None
             else settings.ASK_FALLBACK_SENTENCE_COUNT
         )
-        self._openai_model = (
-            openai_model if openai_model is not None else settings.OPENAI_ANSWER_MODEL
-        )
+        self._llm_service = llm_service
 
         if self._top_k <= 0:
             raise AskExecutionError("ASK_TOP_K must be greater than 0.")
@@ -248,57 +247,19 @@ class AskService:
         query: str,
         context: list[tuple[int, RetrievedChunk]],
     ) -> str:
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise AskBackendError("openai package is required for AI answers.") from exc
-
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-        context_text = "\n\n".join(
-            f"[{citation_id}] {chunk.paper_title}: {chunk.text_chunk}"
+        context_blocks = [
+            f"[{citation_id}] {chunk.paper_title} ({chunk.paper_external_id}): {chunk.text_chunk}"
             for citation_id, chunk in context
-        )
-
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a strict retrieval QA assistant. "
-                    "Answer ONLY using the provided context. "
-                    "If context is insufficient, say so clearly. "
-                    "Always include citation markers like [1], [2] in the answer."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Question: {query}\n\n"
-                    "Context:\n"
-                    f"{context_text}\n\n"
-                    "Return a concise answer with citations."
-                ),
-            },
         ]
 
         try:
-            response = client.chat.completions.create(
-                model=self._openai_model,
-                temperature=0,
-                messages=messages,
-            )
-        except Exception as exc:  # noqa: BLE001
-            raise AskBackendError("OpenAI chat completion failed.") from exc
+            llm_service = self._llm_service or OpenAIAnswerService.from_settings()
+            raw_answer = llm_service.generate_answer(query=query, context_blocks=context_blocks)
+        except LLMServiceError as exc:
+            logger.warning("OpenAI generation failed with code=%s.", exc.details.code)
+            raise AskBackendError(exc.details.message) from exc
 
-        choices = getattr(response, "choices", None)
-        if not choices:
-            raise AskBackendError("OpenAI chat completion returned no choices.")
-
-        content = choices[0].message.content
-        if not isinstance(content, str) or not content.strip():
-            raise AskBackendError("OpenAI chat completion returned empty content.")
-
-        return content.strip()
+        return self._ensure_structured_answer(raw_answer, context=context)
 
     def _build_extractive_answer(
         self,
@@ -307,7 +268,18 @@ class AskService:
         context: list[tuple[int, RetrievedChunk]],
     ) -> str:
         if not context:
-            return "No accessible evidence was found for this query at your clearance level."
+            return self._format_structured_answer(
+                concise_answer=(
+                    "Evidence is weak: no accessible chunks were found for this query at your "
+                    "current clearance level."
+                ),
+                evidence_bullets=["No accessible evidence could be retrieved."],
+                citations=[],
+                follow_ups=[
+                    "Can you broaden the query terms?",
+                    "Can you request a higher clearance level for more evidence?",
+                ],
+            )
 
         query_terms = self._tokenize(query)
         candidates: list[tuple[float, int, int, str]] = []
@@ -338,9 +310,24 @@ class AskService:
         if not selected:
             citation_id, chunk = context[0]
             snippet = " ".join(chunk.text_chunk.split())[:220].rstrip()
-            return f"{snippet} [{citation_id}]"
+            selected.append(f"{snippet} [{citation_id}]")
 
-        return " ".join(selected)
+        citation_items = [
+            f"[{citation_id}] {chunk.paper_external_id}" for citation_id, chunk in context
+        ]
+        concise = (
+            "Evidence is limited; the answer is based on the highest-similarity accessible chunks."
+        )
+
+        return self._format_structured_answer(
+            concise_answer=concise,
+            evidence_bullets=selected,
+            citations=citation_items,
+            follow_ups=[
+                "Which matched papers are most recent?",
+                "Which recommended expert should I contact first?",
+            ],
+        )
 
     @staticmethod
     def _split_sentences(text: str) -> list[str]:
@@ -352,6 +339,65 @@ class AskService:
     @staticmethod
     def _tokenize(text: str) -> set[str]:
         return {token for token in re.findall(r"[a-zA-Z0-9]+", text.lower()) if len(token) >= 3}
+
+    @staticmethod
+    def _format_structured_answer(
+        *,
+        concise_answer: str,
+        evidence_bullets: list[str],
+        citations: list[str],
+        follow_ups: list[str],
+    ) -> str:
+        evidence_lines = [f"- {line}" for line in evidence_bullets] or ["- No evidence available."]
+        citation_lines = [f"- {line}" for line in citations] or ["- None"]
+        follow_up_lines = [f"- {line}" for line in follow_ups] or ["- None"]
+        return "\n".join(
+            [
+                "1. Concise answer",
+                concise_answer.strip(),
+                "",
+                "2. Evidence bullets",
+                *evidence_lines,
+                "",
+                "3. Citations",
+                *citation_lines,
+                "",
+                "4. Suggested follow-up questions",
+                *follow_up_lines,
+            ]
+        )
+
+    def _ensure_structured_answer(
+        self,
+        answer: str,
+        *,
+        context: list[tuple[int, RetrievedChunk]],
+    ) -> str:
+        normalized = answer.strip()
+        lowered = normalized.lower()
+        required_sections = (
+            "1. concise answer",
+            "2. evidence bullets",
+            "3. citations",
+            "4. suggested follow-up questions",
+        )
+        if all(section in lowered for section in required_sections):
+            return normalized
+
+        citation_items = [
+            f"[{citation_id}] {chunk.paper_external_id}" for citation_id, chunk in context
+        ]
+        return self._format_structured_answer(
+            concise_answer=normalized or "Evidence is weak. No concise answer was returned.",
+            evidence_bullets=[
+                "The language model response was normalized into the required format."
+            ],
+            citations=citation_items,
+            follow_ups=[
+                "Can you narrow the query to a specific method or domain?",
+                "Do you want only recent papers from the last 2 years?",
+            ],
+        )
 
     def _save_audit(
         self,

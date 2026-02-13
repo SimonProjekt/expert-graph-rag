@@ -4,7 +4,8 @@ OPENALEX_LIMIT ?= 500
 
 .PHONY: dev test lint migrate createsuperuser ingest ingest_openalex
 .PHONY: embed_papers embed sync_to_neo4j sync_graph compute_graph_metrics verify_data_pipeline
-.PHONY: seed_demo_data seed_openalex startup_check stats_openalex
+.PHONY: seed_demo_data seed_openalex startup_check stats_openalex build_lovable_frontend
+.PHONY: import_lovable_export
 
 dev:
 	$(COMPOSE) up --build -d
@@ -65,3 +66,9 @@ startup_check:
 
 stats_openalex:
 	$(WEB_RUN) python manage.py stats_openalex
+
+build_lovable_frontend:
+	./scripts/build_lovable_frontend.sh
+
+import_lovable_export:
+	./scripts/import_lovable_export.sh "$(ZIP)"
