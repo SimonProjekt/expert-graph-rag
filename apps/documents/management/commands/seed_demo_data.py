@@ -200,27 +200,14 @@ class Command(BaseCommand):
                         defaults=defaults,
                     )
 
-                    author_ids: list[int] = []
-                    for author_order, author_payload in enumerate(row["authors"], start=1):
-                        author = self._upsert_author(author_payload)
-                        author_ids.append(author.id)
-                        Authorship.objects.update_or_create(
-                            paper=paper,
-                            author=author,
-                            defaults={"author_order": author_order},
-                        )
-
-                    Authorship.objects.filter(paper=paper).exclude(
-                        author_id__in=author_ids
-                    ).delete()
-
-                    topic_ids: list[int] = []
-                    for topic_payload in row["topics"]:
-                        topic = self._upsert_topic(topic_payload)
-                        topic_ids.append(topic.id)
-                        PaperTopic.objects.get_or_create(paper=paper, topic=topic)
-
-                    PaperTopic.objects.filter(paper=paper).exclude(topic_id__in=topic_ids).delete()
+                    self._replace_authorships(
+                        paper=paper,
+                        author_payloads=self._dedupe_payloads_by_external_id(row["authors"]),
+                    )
+                    self._replace_topics(
+                        paper=paper,
+                        topic_payloads=self._dedupe_payloads_by_external_id(row["topics"]),
+                    )
 
                     paper_ids.append(paper.id)
             except (IntegrityError, DatabaseError) as exc:
@@ -229,6 +216,63 @@ class Command(BaseCommand):
                 ) from exc
 
         return paper_ids
+
+    def _replace_authorships(
+        self,
+        *,
+        paper: Paper,
+        author_payloads: list[dict[str, Any]],
+    ) -> None:
+        authorships: list[Authorship] = []
+        for author_order, author_payload in enumerate(author_payloads, start=1):
+            author = self._upsert_author(author_payload)
+            authorships.append(
+                Authorship(
+                    paper=paper,
+                    author=author,
+                    author_order=author_order,
+                )
+            )
+
+        Authorship.objects.filter(paper=paper).delete()
+        if authorships:
+            Authorship.objects.bulk_create(authorships)
+
+    def _replace_topics(
+        self,
+        *,
+        paper: Paper,
+        topic_payloads: list[dict[str, Any]],
+    ) -> None:
+        topic_rows: list[PaperTopic] = []
+        topic_ids: set[int] = set()
+        for topic_payload in topic_payloads:
+            topic = self._upsert_topic(topic_payload)
+            if topic.id in topic_ids:
+                continue
+            topic_ids.add(topic.id)
+            topic_rows.append(PaperTopic(paper=paper, topic=topic))
+
+        PaperTopic.objects.filter(paper=paper).delete()
+        if topic_rows:
+            PaperTopic.objects.bulk_create(topic_rows)
+
+    @staticmethod
+    def _dedupe_payloads_by_external_id(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        seen_external_ids: set[str] = set()
+        deduped: list[dict[str, Any]] = []
+
+        for payload in payloads:
+            external_id = str(payload.get("external_id", "")).strip()
+            if not external_id:
+                deduped.append(payload)
+                continue
+            if external_id in seen_external_ids:
+                continue
+            seen_external_ids.add(external_id)
+            deduped.append(payload)
+
+        return deduped
 
     @staticmethod
     def _upsert_author(payload: dict[str, Any]) -> Author:
