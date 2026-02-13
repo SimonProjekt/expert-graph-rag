@@ -36,6 +36,43 @@ DEFAULT_EXAMPLE_QUERIES = (
     "core network anomaly detection",
     "energy efficient base station control",
 )
+LANDING_TUTORIAL_STEPS = (
+    "Select a telecom-focused query from the examples.",
+    "Start in Papers to inspect relevance and snippets.",
+    "Move to Experts to find ranked researchers and institutions.",
+    "Open Graph to explain relationships between authors, papers, and topics.",
+    "Use Ask for a grounded answer with citations.",
+)
+LANDING_CAPABILITIES = (
+    {
+        "title": "Access-Aware Retrieval",
+        "description": (
+            "All results are filtered by clearance (PUBLIC/INTERNAL/CONFIDENTIAL) before "
+            "response payloads are built."
+        ),
+    },
+    {
+        "title": "Expert Ranking",
+        "description": (
+            "Experts are scored by semantic relevance, topic coverage, recency, and optional "
+            "graph centrality."
+        ),
+    },
+    {
+        "title": "Graph-Backed Explainability",
+        "description": (
+            "The graph tab surfaces Author-Paper-Topic paths so rankings are explainable to "
+            "recruiters and technical leads."
+        ),
+    },
+    {
+        "title": "Grounded Ask",
+        "description": (
+            "Ask returns evidence-backed answers with citations and recommended experts from "
+            "retrieved context."
+        ),
+    },
+)
 
 
 @require_http_methods(["GET", "POST"])
@@ -59,9 +96,42 @@ def demo_login(request: HttpRequest) -> HttpResponse:
     return render(request, "ui/demo_login.html", context)
 
 
+@require_GET
+def landing(request: HttpRequest) -> HttpResponse:
+    session_role = get_session_role(request)
+    session_name = get_session_name(request)
+
+    featured_works = list(
+        Paper.objects.filter(security_level=SecurityLevel.PUBLIC)
+        .order_by("-published_date", "-id")
+        .values("title", "published_date")[:8]
+    )
+    featured_experts = list(
+        Author.objects.filter(authorships__paper__security_level=SecurityLevel.PUBLIC)
+        .annotate(paper_count=Count("authorships__paper", distinct=True))
+        .order_by("-paper_count", "name")
+        .values("id", "name", "institution_name", "paper_count")[:8]
+    )
+
+    context: dict[str, Any] = {
+        "session_role": session_role,
+        "session_name": session_name,
+        "llm_enabled": bool(settings.OPENAI_API_KEY),
+        "openalex_live_fetch_enabled": bool(
+            settings.OPENALEX_LIVE_FETCH and bool(settings.OPENALEX_API_KEY)
+        ),
+        "example_queries": list(DEFAULT_EXAMPLE_QUERIES),
+        "tutorial_steps": list(LANDING_TUTORIAL_STEPS),
+        "capabilities": list(LANDING_CAPABILITIES),
+        "featured_works": featured_works,
+        "featured_experts": featured_experts,
+    }
+    return render(request, "ui/landing.html", context)
+
+
 @require_http_methods(["POST"])
 def demo_logout(request: HttpRequest) -> HttpResponse:
-    next_url = request.POST.get("next") or "/"
+    next_url = request.POST.get("next") or "/demo/"
     clear_session_identity(request)
     return redirect(next_url)
 

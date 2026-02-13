@@ -19,6 +19,7 @@
       </div>
 
       <nav class="top-nav-links" aria-label="Primary">
+        <a href="/">Overview</a>
         <a href="#panel-papers">Papers</a>
         <a href="#panel-experts">Experts</a>
         <a href="#panel-graph">Graph</a>
@@ -143,7 +144,7 @@
                     </span>
                   </li>
                 {% empty %}
-                  <li>No local works yet. Run <code>python manage.py seed_openalex</code>.</li>
+                  <li>No local works yet. Run <code>python manage.py seed_demo_data</code>.</li>
                 {% endfor %}
               </ul>
             </article>

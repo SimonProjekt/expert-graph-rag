@@ -75,7 +75,8 @@ The script:
 
 After DNS propagation, open:
 
-- `https://<your-domain>/`
+- `https://<your-domain>/` (landing page)
+- `https://<your-domain>/demo/` (interactive demo)
 - `https://<your-domain>/app` (redirects to stable UI at `/` in interview-safe mode)
 
 ## 4.1) Lovable Frontend (Optional, Same Domain)

@@ -12,7 +12,8 @@ docker compose up --build
 
 App URL:
 
-- `http://localhost:8000/`
+- `http://localhost:8000/` (landing page)
+- `http://localhost:8000/demo/` (interactive demo)
 
 ## Load Demo Data
 
@@ -21,6 +22,9 @@ Fast local fixture seed (no API keys required):
 ```bash
 docker compose exec web python manage.py seed_demo_data
 ```
+
+The default fixture is telecom-focused and aligned to the built-in demo queries
+(5G RAN optimization, network slicing reliability, O-RAN xApp, core anomaly detection, and energy efficiency).
 
 Interview-safe one-command setup:
 
@@ -174,9 +178,20 @@ docker compose exec web python manage.py stats_openalex
 
 ## Example Recruiter Queries
 
+- `5G RAN optimization with AI scheduling`
+- `network slicing orchestration reliability`
+- `O-RAN xApp policy optimization`
 - `federated learning for telecom networks`
-- `RAN optimization with retrieval-augmented systems`
-- `knowledge graph incident triage for operations`
+- `core network anomaly detection`
+- `energy efficient base station control`
+
+## 2-Minute Demo Flow
+
+1. Open `/` and click **Try the Demo**.
+2. Run `5G RAN optimization with AI scheduling` in the Papers tab.
+3. Switch to Experts and explain score breakdown + why-ranked text.
+4. Switch to Graph to show Author-Paper-Topic paths.
+5. Ask: `Who are the best experts for O-RAN xApp policy optimization?` and read citations.
 
 ## Useful Commands
 

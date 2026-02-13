@@ -722,6 +722,56 @@ select {
   font-size: 0.9rem;
 }
 
+.landing-page {
+  display: grid;
+  gap: 12px;
+}
+
+.landing-hero h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.landing-subtitle {
+  margin: 0 0 12px;
+  max-width: 78ch;
+  color: var(--muted);
+}
+
+.landing-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.landing-cta {
+  min-width: 170px;
+}
+
+.landing-capabilities {
+  margin-top: 8px;
+}
+
+.landing-capabilities .card h3 {
+  margin-bottom: 4px;
+}
+
+.landing-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.landing-footer {
+  margin: 6px 0 2px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 @media (max-width: 1180px) {
   .top-nav {
     grid-template-columns: 1fr;

@@ -30,11 +30,173 @@
     ]
   },
   {
+    "title": "Network Slicing Reliability Under Traffic Bursts in 5G Core",
+    "abstract": "A reliability-focused framework for maintaining network slicing service guarantees during bursty traffic conditions in 5G core environments.",
+    "published_date": "2024-05-28",
+    "doi": "10.5555/demo-slicing-rel-002",
+    "external_id": "openalex:W_demo_002",
+    "security_level": "PUBLIC",
+    "authors": [
+      {
+        "name": "Elise Martin",
+        "external_id": "openalex:A_demo_005",
+        "institution_name": "Ericsson Research"
+      },
+      {
+        "name": "Jonas Nilsson",
+        "external_id": "openalex:A_demo_004",
+        "institution_name": "Secure Radio Systems"
+      }
+    ],
+    "topics": [
+      {
+        "name": "network slicing",
+        "external_id": "openalex:T_demo_006"
+      },
+      {
+        "name": "reliability engineering",
+        "external_id": "openalex:T_demo_007"
+      }
+    ]
+  },
+  {
+    "title": "O-RAN xApp Policy Optimization with Safe Reinforcement Learning",
+    "abstract": "This paper presents safe reinforcement learning for O-RAN xApp policy optimization with explicit guardrails for carrier-grade deployment.",
+    "published_date": "2024-07-11",
+    "doi": "10.5555/demo-oran-xapp-003",
+    "external_id": "openalex:W_demo_003",
+    "security_level": "PUBLIC",
+    "authors": [
+      {
+        "name": "Priya Nandakumar",
+        "external_id": "openalex:A_demo_006",
+        "institution_name": "Ericsson Research"
+      },
+      {
+        "name": "Maya Andersson",
+        "external_id": "openalex:A_demo_001",
+        "institution_name": "Nordic Telecom Labs"
+      }
+    ],
+    "topics": [
+      {
+        "name": "o-ran",
+        "external_id": "openalex:T_demo_008"
+      },
+      {
+        "name": "xapp optimization",
+        "external_id": "openalex:T_demo_009"
+      },
+      {
+        "name": "policy learning",
+        "external_id": "openalex:T_demo_010"
+      }
+    ]
+  },
+  {
+    "title": "Core Network Anomaly Detection using Graph Neural Signals",
+    "abstract": "Graph-based anomaly scoring for telecom core network events improves early warning precision and reduces false-positive escalations.",
+    "published_date": "2024-10-06",
+    "doi": "10.5555/demo-core-anomaly-004",
+    "external_id": "openalex:W_demo_004",
+    "security_level": "PUBLIC",
+    "authors": [
+      {
+        "name": "Chen Wei",
+        "external_id": "openalex:A_demo_007",
+        "institution_name": "Core AI Labs"
+      },
+      {
+        "name": "Elise Martin",
+        "external_id": "openalex:A_demo_005",
+        "institution_name": "Ericsson Research"
+      }
+    ],
+    "topics": [
+      {
+        "name": "core network",
+        "external_id": "openalex:T_demo_011"
+      },
+      {
+        "name": "anomaly detection",
+        "external_id": "openalex:T_demo_012"
+      },
+      {
+        "name": "graph analytics",
+        "external_id": "openalex:T_demo_013"
+      }
+    ]
+  },
+  {
+    "title": "Energy-Efficient Base Station Sleep Control with Demand Forecasting",
+    "abstract": "Predictive demand forecasting for base station sleep control achieves significant energy savings while maintaining quality-of-service targets.",
+    "published_date": "2024-11-19",
+    "doi": "10.5555/demo-energy-bs-005",
+    "external_id": "openalex:W_demo_005",
+    "security_level": "PUBLIC",
+    "authors": [
+      {
+        "name": "Matteo Rossi",
+        "external_id": "openalex:A_demo_008",
+        "institution_name": "Energy Systems Lab"
+      },
+      {
+        "name": "Priya Nandakumar",
+        "external_id": "openalex:A_demo_006",
+        "institution_name": "Ericsson Research"
+      }
+    ],
+    "topics": [
+      {
+        "name": "energy efficiency",
+        "external_id": "openalex:T_demo_014"
+      },
+      {
+        "name": "base station control",
+        "external_id": "openalex:T_demo_015"
+      },
+      {
+        "name": "traffic forecasting",
+        "external_id": "openalex:T_demo_016"
+      }
+    ]
+  },
+  {
+    "title": "Closed-Loop RAN Scheduling using Multi-Agent AI",
+    "abstract": "A closed-loop control strategy with multi-agent AI improves RAN scheduling under mobility and interference constraints.",
+    "published_date": "2025-01-09",
+    "doi": "10.5555/demo-ran-schedule-006",
+    "external_id": "openalex:W_demo_006",
+    "security_level": "PUBLIC",
+    "authors": [
+      {
+        "name": "Omar Rahman",
+        "external_id": "openalex:A_demo_002",
+        "institution_name": "Nordic Telecom Labs"
+      },
+      {
+        "name": "Chen Wei",
+        "external_id": "openalex:A_demo_007",
+        "institution_name": "Core AI Labs"
+      }
+    ],
+    "topics": [
+      {
+        "name": "ran optimization",
+        "external_id": "openalex:T_demo_002"
+      },
+      {
+        "name": "ai scheduling",
+        "external_id": "openalex:T_demo_017"
+      }
+    ]
+  },
+  {
     "title": "Knowledge Graph Retrieval for Telecom Incident Triage",
     "abstract": "We combine graph traversal and vector retrieval to accelerate telecom incident triage and improve explainability for operations teams.",
     "published_date": "2024-09-02",
-    "doi": "10.5555/demo-kg-telecom-002",
-    "external_id": "openalex:W_demo_002",
+    "doi": "10.5555/demo-kg-telecom-007",
+    "external_id": "openalex:W_demo_007",
     "security_level": "INTERNAL",
     "authors": [
       {
@@ -60,11 +222,45 @@
     ]
   },
   {
+    "title": "Multi-Vendor Orchestration Reliability in Open RAN Deployments",
+    "abstract": "Empirical analysis of orchestration reliability patterns in multi-vendor Open RAN deployments with policy rollback automation.",
+    "published_date": "2025-02-03",
+    "doi": "10.5555/demo-orchestration-008",
+    "external_id": "openalex:W_demo_008",
+    "security_level": "INTERNAL",
+    "authors": [
+      {
+        "name": "Lina Dupont",
+        "external_id": "openalex:A_demo_003",
+        "institution_name": "Signal Analytics Group"
+      },
+      {
+        "name": "Jonas Nilsson",
+        "external_id": "openalex:A_demo_004",
+        "institution_name": "Secure Radio Systems"
+      }
+    ],
+    "topics": [
+      {
+        "name": "o-ran",
+        "external_id": "openalex:T_demo_008"
+      },
+      {
+        "name": "orchestration reliability",
+        "external_id": "openalex:T_demo_018"
+      },
+      {
+        "name": "network slicing",
+        "external_id": "openalex:T_demo_006"
+      }
+    ]
+  },
+  {
     "title": "Confidential RAN Capacity Planning Playbook",
     "abstract": "Internal playbook for confidential capacity planning policies, escalation criteria, and restricted optimization workflows.",
     "published_date": "2025-01-14",
-    "doi": "10.5555/demo-ran-conf-003",
-    "external_id": "openalex:W_demo_003",
+    "doi": "10.5555/demo-ran-conf-009",
+    "external_id": "openalex:W_demo_009",
     "security_level": "CONFIDENTIAL",
     "authors": [
       {
@@ -86,6 +282,36 @@
       {
         "name": "ran optimization",
         "external_id": "openalex:T_demo_002"
+      }
+    ]
+  },
+  {
+    "title": "Confidential SLA Breach Root Cause Analysis for Network Slices",
+    "abstract": "Restricted analysis of SLA breach patterns across prioritized network slices with confidential remediation workflows.",
+    "published_date": "2025-03-18",
+    "doi": "10.5555/demo-sla-conf-010",
+    "external_id": "openalex:W_demo_010",
+    "security_level": "CONFIDENTIAL",
+    "authors": [
+      {
+        "name": "Jonas Nilsson",
+        "external_id": "openalex:A_demo_004",
+        "institution_name": "Secure Radio Systems"
+      },
+      {
+        "name": "Elise Martin",
+        "external_id": "openalex:A_demo_005",
+        "institution_name": "Ericsson Research"
+      }
+    ],
+    "topics": [
+      {
+        "name": "network slicing",
+        "external_id": "openalex:T_demo_006"
+      },
+      {
+        "name": "sla assurance",
+        "external_id": "openalex:T_demo_019"
       }
     ]
   }
