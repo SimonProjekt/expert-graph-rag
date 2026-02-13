@@ -13,9 +13,28 @@
       <p class="kicker">Ericsson Interview MVP</p>
       <h1>Expert Graph RAG</h1>
       <p class="landing-subtitle">
-        A recruiter-grade prototype for discovering experts and research papers in telecom domains
-        using hybrid semantic retrieval and graph reasoning.
+        A recruiter-grade demo for discovering telecom experts and research papers using hybrid
+        semantic retrieval plus knowledge-graph reasoning.
       </p>
+
+      <div class="landing-metrics" aria-label="Current dataset metrics">
+        <article class="metric-card">
+          <span class="metric-value">{{ metrics.papers }}</span>
+          <span class="metric-label">Papers</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-value">{{ metrics.experts }}</span>
+          <span class="metric-label">Experts</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-value">{{ metrics.topics }}</span>
+          <span class="metric-label">Topics</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-value">{{ metrics.chunks }}</span>
+          <span class="metric-label">Embeddings</span>
+        </article>
+      </div>
 
       <div class="mode-badges" aria-label="Runtime status">
         {% if llm_enabled %}
@@ -59,6 +78,18 @@
           <li>{{ step }}</li>
         {% endfor %}
       </ol>
+    </section>
+
+    <section class="panel">
+      <h2>Demo Flow for Recruiters</h2>
+      <div class="cards landing-capabilities">
+        {% for step in demo_flow %}
+          <article class="card">
+            <h3>{{ step.title }}</h3>
+            <p>{{ step.description }}</p>
+          </article>
+        {% endfor %}
+      </div>
     </section>
 
     <section class="panel">

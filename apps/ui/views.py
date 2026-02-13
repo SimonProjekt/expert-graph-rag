@@ -20,7 +20,7 @@ from apps.common.demo_auth import (
     normalize_role,
     set_session_identity,
 )
-from apps.documents.models import Author, Paper, SecurityLevel
+from apps.documents.models import Author, Embedding, Paper, SecurityLevel, Topic
 from apps.documents.verification import DataPipelineVerifier
 
 TAB_PAPERS = "papers"
@@ -42,6 +42,24 @@ LANDING_TUTORIAL_STEPS = (
     "Move to Experts to find ranked researchers and institutions.",
     "Open Graph to explain relationships between authors, papers, and topics.",
     "Use Ask for a grounded answer with citations.",
+)
+LANDING_DEMO_FLOW = (
+    {
+        "title": "Start with Papers",
+        "description": "Run one telecom query and validate relevance, snippet quality, and timing.",
+    },
+    {
+        "title": "Switch to Experts",
+        "description": "Show ranked experts with score breakdown and why-ranked reasoning.",
+    },
+    {
+        "title": "Open Graph",
+        "description": "Click nodes to inspect Author-Paper-Topic paths and explainability.",
+    },
+    {
+        "title": "Finish with Ask",
+        "description": "Generate a concise answer with citations and recommended experts.",
+    },
 )
 LANDING_CAPABILITIES = (
     {
@@ -112,6 +130,12 @@ def landing(request: HttpRequest) -> HttpResponse:
         .order_by("-paper_count", "name")
         .values("id", "name", "institution_name", "paper_count")[:8]
     )
+    metrics = {
+        "papers": Paper.objects.count(),
+        "experts": Author.objects.count(),
+        "topics": Topic.objects.count(),
+        "chunks": Embedding.objects.count(),
+    }
 
     context: dict[str, Any] = {
         "session_role": session_role,
@@ -122,9 +146,11 @@ def landing(request: HttpRequest) -> HttpResponse:
         ),
         "example_queries": list(DEFAULT_EXAMPLE_QUERIES),
         "tutorial_steps": list(LANDING_TUTORIAL_STEPS),
+        "demo_flow": list(LANDING_DEMO_FLOW),
         "capabilities": list(LANDING_CAPABILITIES),
         "featured_works": featured_works,
         "featured_experts": featured_experts,
+        "metrics": metrics,
     }
     return render(request, "ui/landing.html", context)
 

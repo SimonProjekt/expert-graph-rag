@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Expert Graph RAG Demo</title>
   <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
-  <script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js" defer></script>
+  <script src="{% static 'ui/vendor/vis-network.min.js' %}" defer></script>
   <script src="{% static 'ui/dashboard.js' %}" defer></script>
 </head>
 <body>
@@ -245,7 +245,7 @@
           <div id="ask-results" class="ask-layout" hidden>
             <article class="card">
               <h3>Answer</h3>
-              <p id="ask-answer" class="answer"></p>
+              <div id="ask-answer" class="answer"></div>
             </article>
 
             <article class="card">

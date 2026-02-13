@@ -14,6 +14,7 @@
   const TAB_ORDER = ["papers", "experts", "graph", "ask"];
   const CACHE_LIMIT = 10;
   const DEBOUNCE_MS = 300;
+  const REQUEST_TIMEOUT_MS = 25000;
 
   const state = {
     query: (bootstrap.initialQuery || "").trim(),
@@ -351,6 +352,16 @@
 
     if (options.triggerLoad && state.query) {
       runActiveTabFetch();
+    }
+
+    if (tab === "graph" && state.graph.network) {
+      window.requestAnimationFrame(() => {
+        if (!state.graph.network) {
+          return;
+        }
+        state.graph.network.redraw();
+        state.graph.network.fit({ animation: true });
+      });
     }
   }
 
@@ -807,7 +818,7 @@
   }
 
   function renderGraphData() {
-    if (!window.vis || !dom.graph.canvas) {
+    if (!window.vis || !window.vis.Network || !window.vis.DataSet || !dom.graph.canvas) {
       dom.graph.error.textContent = "vis-network failed to load. Check network access and reload.";
       showElement(dom.graph.error);
       return;
@@ -815,79 +826,87 @@
 
     const filtered = filteredGraphData();
     const styled = applyGraphPathHighlight(filtered);
+    const minCanvasHeight = Math.max(dom.graph.canvas.clientHeight || 0, 520);
+    dom.graph.canvas.style.height = `${minCanvasHeight}px`;
 
-    if (!state.graph.network) {
-      state.graph.network = new window.vis.Network(
-        dom.graph.canvas,
-        {
-          nodes: new window.vis.DataSet(styled.nodes),
-          edges: new window.vis.DataSet(styled.edges),
-        },
-        {
-          autoResize: true,
-          interaction: {
-            hover: true,
-            multiselect: false,
+    try {
+      if (!state.graph.network) {
+        state.graph.network = new window.vis.Network(
+          dom.graph.canvas,
+          {
+            nodes: new window.vis.DataSet(styled.nodes),
+            edges: new window.vis.DataSet(styled.edges),
           },
-          layout: {
-            improvedLayout: true,
-          },
-          physics: {
-            stabilization: {
-              iterations: 200,
+          {
+            autoResize: true,
+            interaction: {
+              hover: true,
+              multiselect: false,
             },
-          },
-          nodes: {
-            shape: "dot",
-            size: 14,
-            font: {
-              size: 12,
-              color: "#102236",
+            layout: {
+              improvedLayout: true,
             },
-          },
-          edges: {
-            arrows: { to: { enabled: true, scaleFactor: 0.5 } },
-            smooth: { type: "dynamic" },
-            color: "#4a5568",
-            width: 1.1,
-          },
-          groups: {
-            query: { color: { background: "#6d28d9" } },
-            author: { color: { background: "#ef9d27" } },
-            paper: { color: { background: "#2f7dd3" } },
-            topic: { color: { background: "#16a073" } },
-          },
-        }
-      );
+            physics: {
+              stabilization: {
+                iterations: 200,
+              },
+            },
+            nodes: {
+              shape: "dot",
+              size: 14,
+              font: {
+                size: 12,
+                color: "#102236",
+              },
+            },
+            edges: {
+              arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+              smooth: { type: "dynamic" },
+              color: "#4a5568",
+              width: 1.1,
+            },
+            groups: {
+              query: { color: { background: "#6d28d9" } },
+              author: { color: { background: "#ef9d27" } },
+              paper: { color: { background: "#2f7dd3" } },
+              topic: { color: { background: "#16a073" } },
+            },
+          }
+        );
 
-      state.graph.network.on("click", (params) => {
-        if (!params.nodes || !params.nodes.length) {
-          state.graph.focusNodeId = null;
+        state.graph.network.on("click", (params) => {
+          if (!params.nodes || !params.nodes.length) {
+            state.graph.focusNodeId = null;
+            renderGraphData();
+            closeNodePanel();
+            return;
+          }
+          const node = state.graph.nodeLookup.get(params.nodes[0]);
+          if (!node) {
+            state.graph.focusNodeId = null;
+            renderGraphData();
+            closeNodePanel();
+            return;
+          }
+          state.graph.focusNodeId = node.id;
           renderGraphData();
-          closeNodePanel();
-          return;
-        }
-        const node = state.graph.nodeLookup.get(params.nodes[0]);
-        if (!node) {
-          state.graph.focusNodeId = null;
-          renderGraphData();
-          closeNodePanel();
-          return;
-        }
-        state.graph.focusNodeId = node.id;
-        renderGraphData();
-        openNodePanel(node);
+          openNodePanel(node);
+        });
+
+        state.graph.network.fit({ animation: true });
+        return;
+      }
+
+      state.graph.network.setData({
+        nodes: new window.vis.DataSet(styled.nodes),
+        edges: new window.vis.DataSet(styled.edges),
       });
-
+      state.graph.network.redraw();
       state.graph.network.fit({ animation: true });
-      return;
+    } catch (_error) {
+      dom.graph.error.textContent = "Graph rendering failed. Reload the page and retry.";
+      showElement(dom.graph.error);
     }
-
-    state.graph.network.setData({
-      nodes: new window.vis.DataSet(styled.nodes),
-      edges: new window.vis.DataSet(styled.edges),
-    });
-    state.graph.network.fit({ animation: true });
   }
 
   function filteredGraphData() {
@@ -1128,7 +1147,7 @@
 
   function renderAsk(payload) {
     showElement(dom.ask.results);
-    dom.ask.answer.textContent = payload.answer || "No answer available.";
+    dom.ask.answer.innerHTML = renderStructuredAnswer(payload.answer || "No answer available.");
 
     const citations = Array.isArray(payload.citations) ? payload.citations : [];
     dom.ask.citations.innerHTML = citations
@@ -1288,14 +1307,28 @@
     }
 
     const controller = resetController(controllerKey);
+    const timeoutId = window.setTimeout(() => {
+      controller.__timedOut = true;
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (isAbortError(error) && controller.__timedOut) {
+        throw new Error("Request timed out. Please retry.");
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const detail = await extractError(response);
@@ -1341,6 +1374,7 @@
       existing.abort();
     }
     const controller = new AbortController();
+    controller.__timedOut = false;
     state.controllers[key] = controller;
     return controller;
   }
@@ -1405,6 +1439,92 @@
         <span>${value.toFixed(2)}</span>
       </div>
     `;
+  }
+
+  function renderStructuredAnswer(text) {
+    const sections = parseStructuredAnswer(text);
+    const concise = sections.concise.join(" ").trim() || "No concise answer available.";
+    const evidence = sections.evidence.length
+      ? sections.evidence
+      : ["No explicit evidence bullets were returned."];
+    const followUps = sections.followUps.length ? sections.followUps : [];
+
+    const followUpHtml = followUps.length
+      ? `
+        <section class="answer-block">
+          <h4>Suggested Follow-up Questions</h4>
+          <ul class="answer-list">
+            ${followUps.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+          </ul>
+        </section>
+      `
+      : "";
+
+    return `
+      <section class="answer-block">
+        <h4>Concise Answer</h4>
+        <p>${escapeHtml(concise)}</p>
+      </section>
+      <section class="answer-block">
+        <h4>Evidence Bullets</h4>
+        <ul class="answer-list">
+          ${evidence.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+        </ul>
+      </section>
+      ${followUpHtml}
+    `;
+  }
+
+  function parseStructuredAnswer(text) {
+    const sections = {
+      concise: [],
+      evidence: [],
+      citations: [],
+      followUps: [],
+    };
+
+    const lines = String(text || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    let current = "concise";
+    lines.forEach((line) => {
+      const lowered = line.toLowerCase();
+      if (lowered.startsWith("1. concise answer")) {
+        current = "concise";
+        return;
+      }
+      if (lowered.startsWith("2. evidence bullets")) {
+        current = "evidence";
+        return;
+      }
+      if (lowered.startsWith("3. citations")) {
+        current = "citations";
+        return;
+      }
+      if (lowered.startsWith("4. suggested follow-up questions")) {
+        current = "followUps";
+        return;
+      }
+
+      const cleaned = line.replace(/^-+\s*/, "").trim();
+      if (!cleaned) {
+        return;
+      }
+      sections[current].push(cleaned);
+    });
+
+    if (
+      sections.concise.length === 0 &&
+      sections.evidence.length === 0 &&
+      sections.citations.length === 0 &&
+      sections.followUps.length === 0
+    ) {
+      sections.concise.push(String(text || "").trim());
+    }
+
+    return sections;
   }
 
   function sortPapers(papers, sortOrder) {

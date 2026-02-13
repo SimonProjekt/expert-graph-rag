@@ -343,9 +343,16 @@ class AskService:
         citation_items = [
             f"[{citation_id}] {chunk.paper_external_id}" for citation_id, chunk in context
         ]
-        concise = (
-            "Evidence is limited; the answer is based on the highest-similarity accessible chunks."
-        )
+        primary_sentence = re.sub(r"\s*\[\d+\]\s*$", "", selected[0]).strip()
+        if primary_sentence:
+            concise = (
+                f"{primary_sentence}. This summary is grounded in the highest-similarity retrieved "
+                "chunks."
+            )
+        else:
+            concise = "The answer is grounded in the highest-similarity retrieved chunks."
+        if len(context) <= 1:
+            concise = f"Evidence is limited. {concise}"
 
         return self._format_structured_answer(
             concise_answer=concise,
