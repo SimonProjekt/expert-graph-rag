@@ -24,6 +24,31 @@ from apps.documents.openalex import OpenAlexReadThroughResult, OpenAlexReadThrou
 
 logger = logging.getLogger(__name__)
 
+_TELECOM_TERMS = {
+    "5g",
+    "6g",
+    "ran",
+    "o",
+    "oran",
+    "o-ran",
+    "ric",
+    "xapp",
+    "xapps",
+    "base",
+    "station",
+    "gnodeb",
+    "network",
+    "networks",
+    "slicing",
+    "slice",
+    "orchestration",
+    "core",
+    "telecom",
+    "telecommunications",
+    "wireless",
+    "radio",
+}
+
 _SECURITY_RANK = {
     SecurityLevel.PUBLIC: 0,
     SecurityLevel.INTERNAL: 1,
@@ -70,6 +95,7 @@ class GraphPathHint:
 class ScoredPaperHit:
     hit: RankedPaperHit
     semantic_relevance: float
+    query_alignment: float
     graph_authority: float
     graph_centrality: float
     total_score: float
@@ -234,6 +260,7 @@ class SearchService:
                     "graph_hop_distance": scored_hit.hit.hop_distance,
                     "score_breakdown": {
                         "semantic_relevance": round(scored_hit.semantic_relevance, 4),
+                        "query_alignment": round(scored_hit.query_alignment, 4),
                         "graph_authority": round(scored_hit.graph_authority, 4),
                         "graph_centrality": round(scored_hit.graph_centrality, 4),
                     },
@@ -680,9 +707,14 @@ class SearchService:
         paper_author_ids: dict[int, set[int]] = {}
         paper_topics_lower: dict[int, set[str]] = {}
         paper_topics_display: dict[int, list[str]] = {}
+        paper_query_alignment: dict[int, float] = {}
+        paper_telecom_alignment: dict[int, float] = {}
         paper_avg_centrality: dict[int, float] = {}
         papers_by_author: dict[int, set[int]] = {}
         papers_by_topic: dict[str, set[int]] = {}
+
+        query_terms = self._tokenize(query_text)
+        query_has_telecom_intent = self._has_telecom_intent(query_terms)
 
         for paper_id, paper in papers.items():
             author_ids: set[int] = set()
@@ -702,6 +734,19 @@ class SearchService:
             paper_author_ids[paper_id] = author_ids
             paper_topics_lower[paper_id] = topic_lower
             paper_topics_display[paper_id] = topic_display
+            paper_query_alignment[paper_id] = self._query_alignment(
+                query_text=query_text,
+                query_terms=query_terms,
+                title=paper.title,
+                abstract=paper.abstract,
+                topics=topic_display,
+            )
+            paper_telecom_alignment[paper_id] = self._telecom_alignment(
+                query_terms=query_terms,
+                title=paper.title,
+                abstract=paper.abstract,
+                topics=topic_display,
+            )
             paper_avg_centrality[paper_id] = (
                 float(mean(centrality_values)) if centrality_values else 0.0
             )
@@ -731,7 +776,6 @@ class SearchService:
             if raw_authority > max_authority_raw:
                 max_authority_raw = raw_authority
 
-        query_terms = self._tokenize(query_text)
         scored: list[ScoredPaperHit] = []
         for paper_id, hit in hits_by_paper.items():
             paper = papers.get(paper_id)
@@ -739,16 +783,21 @@ class SearchService:
                 continue
 
             semantic_relevance = self._semantic_score(hit.best_distance)
+            query_alignment = paper_query_alignment.get(paper_id, 0.0)
+            telecom_alignment = paper_telecom_alignment.get(paper_id, 0.0)
             raw_authority = authority_raw_by_paper.get(paper_id, 0.0)
             graph_authority = (raw_authority / max_authority_raw) if max_authority_raw > 0 else 0.0
             centrality_raw = paper_avg_centrality.get(paper_id, 0.0)
             graph_centrality = (centrality_raw / max_centrality) if max_centrality > 0 else 0.0
 
             total_score = (
-                (0.60 * semantic_relevance)
-                + (0.25 * graph_authority)
-                + (0.15 * graph_centrality)
+                (0.52 * semantic_relevance)
+                + (0.23 * query_alignment)
+                + (0.17 * graph_authority)
+                + (0.08 * graph_centrality)
             )
+            if query_has_telecom_intent and telecom_alignment <= 0.0:
+                total_score *= 0.85
 
             hint = path_hints.get(paper_id)
             graph_path = self._graph_path_for_paper(paper_id=paper_id, hint=hint)
@@ -759,10 +808,12 @@ class SearchService:
             )
             why_matched = self._why_matched(
                 semantic_relevance=semantic_relevance,
+                query_alignment=query_alignment,
                 graph_authority=graph_authority,
                 graph_centrality=graph_centrality,
                 source=hit.source,
                 keywords=keywords,
+                telecom_alignment=telecom_alignment,
                 hint=hint,
             )
 
@@ -770,6 +821,7 @@ class SearchService:
                 ScoredPaperHit(
                     hit=hit,
                     semantic_relevance=semantic_relevance,
+                    query_alignment=query_alignment,
                     graph_authority=graph_authority,
                     graph_centrality=graph_centrality,
                     total_score=total_score,
@@ -799,7 +851,7 @@ class SearchService:
 
         papers = (
             Paper.objects.filter(id__in=paper_ids)
-            .only("id", "title", "published_date")
+            .only("id", "title", "abstract", "published_date")
             .prefetch_related(
                 Prefetch("authorships", queryset=authorships_qs),
                 Prefetch("paper_topics", queryset=paper_topics_qs),
@@ -874,6 +926,59 @@ class SearchService:
         return matched[:3]
 
     @staticmethod
+    def _query_alignment(
+        *,
+        query_text: str,
+        query_terms: set[str],
+        title: str,
+        abstract: str,
+        topics: list[str],
+    ) -> float:
+        if not query_terms:
+            return 0.0
+
+        title_terms = SearchService._tokenize(title)
+        body_terms = SearchService._tokenize(abstract)
+        topic_terms: set[str] = set()
+        for topic in topics:
+            topic_terms |= SearchService._tokenize(topic)
+
+        corpus_terms = title_terms | body_terms | topic_terms
+        if not corpus_terms:
+            return 0.0
+
+        overlap = len(query_terms & corpus_terms) / float(len(query_terms))
+        title_overlap = len(query_terms & title_terms) / float(len(query_terms))
+        normalized_query = " ".join((query_text or "").lower().split())
+        phrase_match = 1.0 if normalized_query and normalized_query in title.lower() else 0.0
+
+        score = (0.60 * overlap) + (0.30 * title_overlap) + (0.10 * phrase_match)
+        return max(0.0, min(1.0, score))
+
+    @staticmethod
+    def _telecom_alignment(
+        *,
+        query_terms: set[str],
+        title: str,
+        abstract: str,
+        topics: list[str],
+    ) -> float:
+        telecom_query_terms = {term for term in query_terms if term in _TELECOM_TERMS}
+        if not telecom_query_terms:
+            return 0.0
+
+        corpus_terms = SearchService._tokenize(title) | SearchService._tokenize(abstract)
+        for topic in topics:
+            corpus_terms |= SearchService._tokenize(topic)
+
+        overlap = len(telecom_query_terms & corpus_terms) / float(len(telecom_query_terms))
+        return max(0.0, min(1.0, overlap))
+
+    @staticmethod
+    def _has_telecom_intent(query_terms: set[str]) -> bool:
+        return any(term in _TELECOM_TERMS for term in query_terms)
+
+    @staticmethod
     def _graph_path_for_paper(*, paper_id: int, hint: GraphPathHint | None) -> str:
         if hint is None:
             return f"query -> paper:{paper_id}"
@@ -892,17 +997,22 @@ class SearchService:
     def _why_matched(
         *,
         semantic_relevance: float,
+        query_alignment: float,
         graph_authority: float,
         graph_centrality: float,
         source: str,
         keywords: list[str],
+        telecom_alignment: float,
         hint: GraphPathHint | None,
     ) -> str:
         parts = [
             f"semantic={semantic_relevance:.2f}",
+            f"query_alignment={query_alignment:.2f}",
             f"graph_authority={graph_authority:.2f}",
             f"centrality={graph_centrality:.2f}",
         ]
+        if telecom_alignment > 0:
+            parts.append(f"telecom_alignment={telecom_alignment:.2f}")
         if keywords:
             parts.append(f"keywords={', '.join(keywords)}")
         if hint is not None:

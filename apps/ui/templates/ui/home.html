@@ -14,7 +14,6 @@
   <main class="app-shell" id="app-shell">
     <header class="top-nav">
       <div class="brand-block">
-        <p class="kicker">Recruiter Demo</p>
         <h1>Expert Graph RAG</h1>
       </div>
 
@@ -86,6 +85,13 @@
 
         <section class="panel">
           <h2>Graph Filters</h2>
+          <label for="graph-density">Graph detail</label>
+          <select id="graph-density">
+            <option value="focused">Focused</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="full">Full</option>
+          </select>
+
           <label class="toggle-row" for="toggle-authors">
             <input id="toggle-authors" type="checkbox" checked>
             <span>Show Authors</span>
@@ -98,6 +104,10 @@
             <input id="toggle-topics" type="checkbox" checked>
             <span>Show Topics</span>
           </label>
+          <label class="toggle-row" for="toggle-collaborators">
+            <input id="toggle-collaborators" type="checkbox" checked>
+            <span>Show Collaborators</span>
+          </label>
 
           <div class="graph-actions">
             <button id="graph-fit" type="button" class="ghost-button">Zoom to fit</button>
@@ -109,6 +119,7 @@
             <span><i class="legend-dot legend-author"></i>Author</span>
             <span><i class="legend-dot legend-paper"></i>Paper</span>
             <span><i class="legend-dot legend-topic"></i>Topic</span>
+            <span><i class="legend-dot legend-collab"></i>Collaborator link</span>
           </div>
         </section>
       </aside>
@@ -185,8 +196,11 @@
         <section id="panel-experts" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-experts" hidden>
           <div class="panel-header">
             <h2>Experts</h2>
-            <p class="muted" id="experts-meta">No results yet</p>
+            <p class="muted" id="experts-meta">No ranked experts yet</p>
           </div>
+          <p class="muted experts-intro">
+            Ranked by semantic relevance, query alignment, recency, topic coverage, and graph centrality.
+          </p>
 
           <div id="experts-loading" class="skeleton-grid" hidden>
             <article class="skeleton-card"></article>

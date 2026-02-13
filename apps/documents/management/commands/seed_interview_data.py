@@ -13,6 +13,10 @@ DEMO_QUERIES = (
     "federated learning for telecom networks",
     "core network anomaly detection",
     "energy efficient base station control",
+    "near-real-time RIC optimization for massive MIMO",
+    "telecom digital twins for radio resource management",
+    "self-healing mobile network fault prediction",
+    "private 5G industrial campus network automation",
 )
 
 
@@ -102,7 +106,7 @@ class Command(BaseCommand):
                     authors=authors_per_query,
                     query=query,
                     years=years,
-                    topics=["telecom", "rag", "knowledge-graph"],
+                    topics=["telecom"],
                     backend=backend,
                     batch_size=batch_size,
                     skip_graph_sync=True,

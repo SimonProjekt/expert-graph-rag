@@ -255,6 +255,11 @@ OPENALEX_LIVE_FETCH_LIMIT = get_int("OPENALEX_LIVE_FETCH_LIMIT", default=40)
 OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS = get_int("OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS", default=900)
 OPENALEX_CACHE_ENABLED = get_bool("OPENALEX_CACHE_ENABLED", default=True)
 OPENALEX_CACHE_TTL_SECONDS = get_int("OPENALEX_CACHE_TTL_SECONDS", default=900)
+try:
+    OPENALEX_MIN_QUERY_COVERAGE = float(get_env("OPENALEX_MIN_QUERY_COVERAGE", default="0.18"))
+except ValueError as exc:
+    raise ImproperlyConfigured("OPENALEX_MIN_QUERY_COVERAGE must be a valid float.") from exc
+OPENALEX_MAX_TOPICS_PER_WORK = get_int("OPENALEX_MAX_TOPICS_PER_WORK", default=8)
 
 if OPENALEX_PAGE_SIZE <= 0:
     raise ImproperlyConfigured("OPENALEX_PAGE_SIZE must be greater than 0.")
@@ -274,6 +279,10 @@ if OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS < 0:
     raise ImproperlyConfigured("OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS must be 0 or greater.")
 if OPENALEX_CACHE_TTL_SECONDS < 0:
     raise ImproperlyConfigured("OPENALEX_CACHE_TTL_SECONDS must be 0 or greater.")
+if OPENALEX_MIN_QUERY_COVERAGE < 0 or OPENALEX_MIN_QUERY_COVERAGE > 1:
+    raise ImproperlyConfigured("OPENALEX_MIN_QUERY_COVERAGE must be between 0 and 1.")
+if OPENALEX_MAX_TOPICS_PER_WORK <= 0:
+    raise ImproperlyConfigured("OPENALEX_MAX_TOPICS_PER_WORK must be greater than 0.")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

@@ -375,6 +375,82 @@ def test_search_graph_expansion_returns_connected_papers_with_explainability(cli
     assert "query -> seed_paper:" in expanded["graph_path"]
     assert set(expanded["score_breakdown"].keys()) == {
         "semantic_relevance",
+        "query_alignment",
         "graph_authority",
         "graph_centrality",
     }
+
+
+@pytest.mark.django_db
+@override_settings(OPENALEX_LIVE_FETCH=False)
+def test_search_prioritizes_query_aligned_telecom_papers(client) -> None:
+    telecom_topic = Topic.objects.create(name="RAN optimization", external_id="topic:ran:001")
+    generic_topic = Topic.objects.create(name="Visual arts", external_id="topic:arts:001")
+
+    telecom_author = Author.objects.create(
+        name="Telecom Author",
+        external_id="author:telecom:001",
+        institution_name="Telecom Lab",
+    )
+    generic_author = Author.objects.create(
+        name="Generic Author",
+        external_id="author:generic:001",
+        institution_name="Generic Lab",
+    )
+
+    telecom_paper = Paper.objects.create(
+        title="5G RAN scheduling optimization for radio networks",
+        abstract="Network scheduling and optimization for 5G base stations.",
+        external_id="paper:telecom:aligned:001",
+        security_level=SecurityLevel.PUBLIC,
+    )
+    generic_paper = Paper.objects.create(
+        title="Visual storytelling and artistic networks",
+        abstract="A broad overview unrelated to telecom optimization.",
+        external_id="paper:generic:offtopic:001",
+        security_level=SecurityLevel.PUBLIC,
+    )
+
+    Authorship.objects.create(author=telecom_author, paper=telecom_paper, author_order=1)
+    Authorship.objects.create(author=generic_author, paper=generic_paper, author_order=1)
+    PaperTopic.objects.create(paper=telecom_paper, topic=telecom_topic)
+    PaperTopic.objects.create(paper=generic_paper, topic=generic_topic)
+
+    shared_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Embedding.objects.create(
+        paper=telecom_paper,
+        chunk_id=0,
+        text_chunk="5G RAN optimization and scheduling chunk.",
+        embedding=shared_vector,
+    )
+    Embedding.objects.create(
+        paper=generic_paper,
+        chunk_id=0,
+        text_chunk="generic unrelated chunk.",
+        embedding=shared_vector,
+    )
+
+    with patch(
+        "apps.api.services.get_embedding_backend",
+        return_value=StaticBackend(shared_vector),
+    ):
+        response = client.get(
+            "/api/search",
+            {
+                "query": "5G RAN optimization scheduling",
+                "clearance": SecurityLevel.PUBLIC,
+                "page": 1,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"]
+    ranked_titles = [row["title"] for row in payload["results"]]
+    assert ranked_titles[0] == telecom_paper.title
+
+    by_title = {row["title"]: row for row in payload["results"]}
+    assert (
+        by_title[telecom_paper.title]["score_breakdown"]["query_alignment"]
+        > by_title[generic_paper.title]["score_breakdown"]["query_alignment"]
+    )

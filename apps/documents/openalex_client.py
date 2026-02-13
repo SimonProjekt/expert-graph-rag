@@ -417,7 +417,7 @@ class OpenAlexClient:
         if not isinstance(raw_concepts, list):
             return []
 
-        concepts: list[OpenAlexConceptRecord] = []
+        concepts_with_score: list[tuple[float, OpenAlexConceptRecord]] = []
         for concept in raw_concepts:
             if not isinstance(concept, dict):
                 continue
@@ -425,9 +425,19 @@ class OpenAlexClient:
             name = OpenAlexClient._as_non_empty_string(concept.get("display_name"))
             if external_id is None or name is None:
                 continue
-            concepts.append(OpenAlexConceptRecord(external_id=external_id, name=name))
+            raw_score = concept.get("score", 1.0)
+            try:
+                score = float(raw_score)
+            except (TypeError, ValueError):
+                score = 1.0
+            if score < 0.25:
+                continue
+            concepts_with_score.append(
+                (score, OpenAlexConceptRecord(external_id=external_id, name=name))
+            )
 
-        return concepts[:20]
+        concepts_with_score.sort(key=lambda item: item[0], reverse=True)
+        return [record for _score, record in concepts_with_score[:12]]
 
     @staticmethod
     def decode_abstract(raw_index: Any) -> str:

@@ -37,6 +37,10 @@
       fullEdges: [],
       nodeLookup: new Map(),
       focusNodeId: null,
+      density: "balanced",
+      truncatedAuthors: 0,
+      truncatedTopics: 0,
+      collaboratorEdges: 0,
     },
   };
 
@@ -84,9 +88,11 @@
       meta: document.getElementById("graph-meta"),
       fitButton: document.getElementById("graph-fit"),
       resetButton: document.getElementById("graph-reset"),
+      densitySelect: document.getElementById("graph-density"),
       toggleAuthors: document.getElementById("toggle-authors"),
       togglePapers: document.getElementById("toggle-papers"),
       toggleTopics: document.getElementById("toggle-topics"),
+      toggleCollaborators: document.getElementById("toggle-collaborators"),
       nodePanel: document.getElementById("graph-node-panel"),
       nodePanelClose: document.getElementById("graph-node-close"),
       nodeDetails: document.getElementById("graph-node-details"),
@@ -214,7 +220,33 @@
       });
     }
 
-    [dom.graph.toggleAuthors, dom.graph.togglePapers, dom.graph.toggleTopics].forEach((toggle) => {
+    if (dom.graph.densitySelect) {
+      dom.graph.densitySelect.addEventListener("change", () => {
+        const next = dom.graph.densitySelect.value;
+        if (!["focused", "balanced", "full"].includes(next)) {
+          return;
+        }
+        state.graph.density = next;
+        if (state.lastPayloads.graph) {
+          const graph = buildGraph(state.lastPayloads.graph.results || []);
+          state.graph.fullNodes = graph.nodes;
+          state.graph.fullEdges = graph.edges;
+          state.graph.nodeLookup = graph.nodeLookup;
+          state.graph.truncatedAuthors = graph.truncatedAuthors;
+          state.graph.truncatedTopics = graph.truncatedTopics;
+          state.graph.collaboratorEdges = graph.collaboratorEdges;
+          renderGraphMeta();
+          renderGraphData();
+        }
+      });
+    }
+
+    [
+      dom.graph.toggleAuthors,
+      dom.graph.togglePapers,
+      dom.graph.toggleTopics,
+      dom.graph.toggleCollaborators,
+    ].forEach((toggle) => {
       if (!toggle) {
         return;
       }
@@ -267,6 +299,9 @@
     }
     if (dom.clearanceBadge) {
       dom.clearanceBadge.textContent = `Clearance: ${state.clearance}`;
+    }
+    if (dom.graph.densitySelect) {
+      dom.graph.densitySelect.value = state.graph.density;
     }
   }
 
@@ -472,6 +507,7 @@
         const semantic = normalizeScore(
           paper.score_breakdown?.semantic_relevance ?? paper.semantic_relevance_score
         );
+        const queryAlignment = normalizeScore(paper.score_breakdown?.query_alignment);
         const authority = normalizeScore(paper.score_breakdown?.graph_authority);
         const centrality = normalizeScore(paper.score_breakdown?.graph_centrality);
 
@@ -490,6 +526,7 @@
               <span class="pill">Semantic: ${semantic.toFixed(3)}</span>
             </div>
             <div class="score-grid" aria-label="Search score breakdown for ${escapeHtml(paper.title || "paper")}">
+              ${scoreRow("Query", queryAlignment)}
               ${scoreRow("Graph authority", authority)}
               ${scoreRow("Centrality", centrality)}
             </div>
@@ -617,7 +654,18 @@
         const semantic = normalizeScore(expert.score_breakdown?.semantic_relevance);
         const recency = normalizeScore(expert.score_breakdown?.recency_boost);
         const coverage = normalizeScore(expert.score_breakdown?.topic_coverage);
+        const queryAlignment = normalizeScore(expert.score_breakdown?.query_alignment);
         const centrality = normalizeScore(expert.score_breakdown?.graph_centrality);
+        const matchedPapers = Number(expert.matched_paper_count || expert.top_papers?.length || 0);
+        const topPaperList = Array.isArray(expert.top_papers) ? expert.top_papers : [];
+        const topPaperHtml = topPaperList
+          .slice(0, 3)
+          .map((paper) => {
+            const title = escapeHtml(paper.title || "Untitled");
+            const dateLabel = escapeHtml(paper.published_date || "n/a");
+            return `<li>${title} <span class="muted">(${dateLabel})</span></li>`;
+          })
+          .join("");
 
         return `
           <article class="card">
@@ -625,14 +673,21 @@
               ${index + 1}. <a href="${profileHref}">${escapeHtml(expert.name || "Unknown")}</a>
             </h3>
             <p>${escapeHtml(expert.institution || "")}</p>
+            <p class="muted">Matched papers: ${matchedPapers}</p>
             <div class="meta-list">${asChipList(expert.top_topics || [], "")}</div>
 
             <div class="score-grid" aria-label="Score breakdown for ${escapeHtml(expert.name || "expert")}">
               ${scoreRow("Semantic", semantic)}
+              ${scoreRow("Query", queryAlignment)}
               ${scoreRow("Recency", recency)}
               ${scoreRow("Coverage", coverage)}
               ${scoreRow("Centrality", centrality)}
             </div>
+
+            <details class="why-details">
+              <summary>Top papers used for ranking</summary>
+              <ul class="list">${topPaperHtml || "<li>No top papers available.</li>"}</ul>
+            </details>
 
             <details class="why-details">
               <summary>Why this expert?</summary>
@@ -681,6 +736,9 @@
       state.graph.fullEdges = graph.edges;
       state.graph.nodeLookup = graph.nodeLookup;
       state.graph.focusNodeId = null;
+      state.graph.truncatedAuthors = graph.truncatedAuthors;
+      state.graph.truncatedTopics = graph.truncatedTopics;
+      state.graph.collaboratorEdges = graph.collaboratorEdges;
 
       if (!graph.nodes.length) {
         dom.graph.meta.textContent = "0 nodes";
@@ -690,7 +748,7 @@
 
       hideElement(dom.graph.empty);
       showElement(dom.graph.shell);
-      dom.graph.meta.textContent = `${graph.nodes.length} nodes · ${graph.edges.length} edges`;
+      renderGraphMeta();
       renderGraphData();
       applyRedaction(payload.redacted_count || 0);
     } catch (error) {
@@ -710,11 +768,17 @@
     const nodes = [];
     const edges = [];
     const nodeLookup = new Map();
+    const density = state.graph.density || "balanced";
 
     const seenNodeIds = new Set();
     const seenEdges = new Set();
     const queryId = "query:current";
     const queryLabel = truncateLabel(state.query || "Current query", 28);
+    const authorByPaper = new Map();
+    const caps = graphCaps(density);
+    let truncatedAuthors = 0;
+    let truncatedTopics = 0;
+    let collaboratorEdges = 0;
 
     function addNode(node) {
       if (seenNodeIds.has(node.id)) {
@@ -741,6 +805,7 @@
       id: queryId,
       label: queryLabel,
       group: "query",
+      value: 42,
       title: `Query: ${escapeHtml(state.query || "n/a")}`,
       details: {
         Type: "Query",
@@ -761,6 +826,7 @@
         id: paperId,
         label: paper.title || "Untitled paper",
         group: "paper",
+        value: 18 + Math.round(normalizeScore(paper.relevance_score) * 12),
         title: `Paper: ${escapeHtml(paper.title || "Untitled")}`,
         details: {
           Type: "Paper",
@@ -783,38 +849,95 @@
         dashes: hop > 0,
       });
 
-      (paper.authors || []).forEach((author) => {
+      const shownAuthors = (paper.authors || []).slice(0, caps.maxAuthorsPerPaper);
+      const hiddenAuthors = Math.max(0, (paper.authors || []).length - shownAuthors.length);
+      truncatedAuthors += hiddenAuthors;
+
+      shownAuthors.forEach((author) => {
         const authorId = `author:${slug(author)}`;
         addNode({
           id: authorId,
           label: author,
           group: "author",
+          value: 12,
           title: `Author: ${escapeHtml(author)}`,
           details: {
             Type: "Author",
             Name: author,
           },
         });
-        addEdge({ from: authorId, to: paperId, label: "WROTE" });
+        addEdge({
+          from: authorId,
+          to: paperId,
+          label: "WROTE",
+          relation: "WROTE",
+        });
+
+        if (!authorByPaper.has(paperId)) {
+          authorByPaper.set(paperId, []);
+        }
+        authorByPaper.get(paperId).push(authorId);
       });
 
-      (paper.topics || []).forEach((topic) => {
+      const shownTopics = (paper.topics || []).slice(0, caps.maxTopicsPerPaper);
+      const hiddenTopics = Math.max(0, (paper.topics || []).length - shownTopics.length);
+      truncatedTopics += hiddenTopics;
+
+      shownTopics.forEach((topic) => {
         const topicId = `topic:${slug(topic)}`;
         addNode({
           id: topicId,
           label: topic,
           group: "topic",
+          value: 10,
           title: `Topic: ${escapeHtml(topic)}`,
           details: {
             Type: "Topic",
             Name: topic,
           },
         });
-        addEdge({ from: paperId, to: topicId, label: "HAS_TOPIC" });
+        addEdge({
+          from: paperId,
+          to: topicId,
+          label: "HAS_TOPIC",
+          relation: "HAS_TOPIC",
+        });
       });
+
+      if (hiddenAuthors > 0 || hiddenTopics > 0) {
+        const paperNode = nodeLookup.get(paperId);
+        if (paperNode && paperNode.details) {
+          paperNode.details["Graph scope"] = `showing ${shownAuthors.length}/${(paper.authors || []).length} authors and ${shownTopics.length}/${(paper.topics || []).length} topics`;
+        }
+      }
     });
 
-    return { nodes, edges, nodeLookup };
+    if (dom.graph.toggleCollaborators && dom.graph.toggleCollaborators.checked) {
+      authorByPaper.forEach((authorIds, paperId) => {
+        for (let left = 0; left < authorIds.length; left += 1) {
+          for (let right = left + 1; right < authorIds.length; right += 1) {
+            addEdge({
+              id: `${authorIds[left]}<->${authorIds[right]}:${paperId}:COLLABORATED_WITH`,
+              from: authorIds[left],
+              to: authorIds[right],
+              label: "COLLABORATED_WITH",
+              relation: "COLLABORATED_WITH",
+              dashes: true,
+            });
+            collaboratorEdges += 1;
+          }
+        }
+      });
+    }
+
+    return {
+      nodes,
+      edges,
+      nodeLookup,
+      truncatedAuthors,
+      truncatedTopics,
+      collaboratorEdges,
+    };
   }
 
   function renderGraphData() {
@@ -842,28 +965,41 @@
             interaction: {
               hover: true,
               multiselect: false,
+              navigationButtons: true,
+              keyboard: true,
             },
             layout: {
               improvedLayout: true,
             },
             physics: {
+              barnesHut: {
+                gravitationalConstant: -18000,
+                springLength: 120,
+                springConstant: 0.03,
+              },
               stabilization: {
                 iterations: 200,
               },
             },
             nodes: {
               shape: "dot",
-              size: 14,
+              scaling: {
+                min: 8,
+                max: 34,
+              },
               font: {
                 size: 12,
                 color: "#102236",
               },
             },
             edges: {
-              arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+              arrows: { to: { enabled: true, scaleFactor: 0.35 } },
               smooth: { type: "dynamic" },
               color: "#4a5568",
-              width: 1.1,
+              width: 0.9,
+              font: {
+                size: 0,
+              },
             },
             groups: {
               query: { color: { background: "#6d28d9" } },
@@ -913,6 +1049,9 @@
     const showAuthors = !!(dom.graph.toggleAuthors && dom.graph.toggleAuthors.checked);
     const showPapers = !!(dom.graph.togglePapers && dom.graph.togglePapers.checked);
     const showTopics = !!(dom.graph.toggleTopics && dom.graph.toggleTopics.checked);
+    const showCollaborators = !!(
+      dom.graph.toggleCollaborators && dom.graph.toggleCollaborators.checked
+    );
 
     const allowed = new Set();
     if (showAuthors) {
@@ -929,6 +1068,9 @@
     const nodes = state.graph.fullNodes.filter((node) => allowed.has(node.group));
     const nodeIds = new Set(nodes.map((node) => node.id));
     const edges = state.graph.fullEdges.filter((edge) => {
+      if (!showCollaborators && edge.relation === "COLLABORATED_WITH") {
+        return false;
+      }
       return nodeIds.has(edge.from) && nodeIds.has(edge.to);
     });
 
@@ -946,6 +1088,7 @@
         edges: filtered.edges.map((edge) => ({
           ...edge,
           color: { color: "#4a5568", opacity: 0.9 },
+          font: { size: 0 },
         })),
       };
     }
@@ -971,10 +1114,11 @@
       const highlighted = highlightedEdgeIds.has(edge.id);
       return {
         ...edge,
-        width: highlighted ? 3 : 1.1,
+        width: highlighted ? 2.8 : 0.9,
         color: highlighted
           ? { color: "#c2410c", opacity: 1.0 }
           : { color: "#9aa5b1", opacity: 0.45 },
+        font: highlighted ? { size: 10, color: "#7c2d12" } : { size: 0 },
       };
     });
 
@@ -1082,6 +1226,33 @@
       state.graph.focusNodeId = null;
     }
     renderGraphData();
+  }
+
+  function graphCaps(density) {
+    if (density === "focused") {
+      return { maxAuthorsPerPaper: 3, maxTopicsPerPaper: 4 };
+    }
+    if (density === "full") {
+      return { maxAuthorsPerPaper: 8, maxTopicsPerPaper: 10 };
+    }
+    return { maxAuthorsPerPaper: 5, maxTopicsPerPaper: 6 };
+  }
+
+  function renderGraphMeta() {
+    if (!dom.graph.meta) {
+      return;
+    }
+    const nodesCount = state.graph.fullNodes.length;
+    const edgesCount = state.graph.fullEdges.length;
+    const extraAuthors = Number(state.graph.truncatedAuthors || 0);
+    const extraTopics = Number(state.graph.truncatedTopics || 0);
+    const collabEdges = Number(state.graph.collaboratorEdges || 0);
+    const truncationText =
+      extraAuthors > 0 || extraTopics > 0
+        ? ` · truncated ${extraAuthors} authors, ${extraTopics} topics`
+        : "";
+    const collabText = collabEdges > 0 ? ` · ${collabEdges} collaborator links` : "";
+    dom.graph.meta.textContent = `${nodesCount} nodes · ${edgesCount} edges${collabText}${truncationText}`;
   }
 
   function openNodePanel(node) {

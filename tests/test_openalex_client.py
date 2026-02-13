@@ -96,3 +96,32 @@ def test_openalex_client_uses_cache_for_identical_requests() -> None:
 
     assert first == second
     assert call_count == 1
+
+
+def test_extract_concepts_filters_low_scores() -> None:
+    raw_work = {
+        "concepts": [
+            {
+                "id": "https://openalex.org/C-high",
+                "display_name": "Telecommunications",
+                "score": 0.91,
+            },
+            {
+                "id": "https://openalex.org/C-mid",
+                "display_name": "Network optimization",
+                "score": 0.42,
+            },
+            {
+                "id": "https://openalex.org/C-low",
+                "display_name": "Low confidence concept",
+                "score": 0.12,
+            },
+        ]
+    }
+
+    concepts = OpenAlexClient.extract_concepts_from_work(raw_work)
+    names = [concept.name for concept in concepts]
+
+    assert "Telecommunications" in names
+    assert "Network optimization" in names
+    assert "Low confidence concept" not in names

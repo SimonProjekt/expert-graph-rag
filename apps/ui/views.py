@@ -35,6 +35,8 @@ DEFAULT_EXAMPLE_QUERIES = (
     "federated learning for telecom networks",
     "core network anomaly detection",
     "energy efficient base station control",
+    "near-real-time RIC optimization for massive MIMO",
+    "telecom digital twins for radio resource management",
 )
 LANDING_TUTORIAL_STEPS = (
     "Select a telecom-focused query from the examples.",

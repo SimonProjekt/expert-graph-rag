@@ -34,7 +34,7 @@ def test_seed_interview_data_runs_openalex_queries_when_enabled() -> None:
         )
 
     names = [item.args[0] for item in cmd_mock.call_args_list]
-    assert names.count("seed_openalex") == 6
+    assert names.count("seed_openalex") == 10
     assert names[0] == "seed_demo_data"
     assert names[-1] == "sync_to_neo4j"
 
@@ -44,7 +44,7 @@ def test_seed_interview_data_runs_openalex_queries_when_enabled() -> None:
     assert first_kwargs["works"] == 25
     assert first_kwargs["authors"] == 15
     assert first_kwargs["years"] == "2022-2026"
-    assert first_kwargs["topics"] == ["telecom", "rag", "knowledge-graph"]
+    assert first_kwargs["topics"] == ["telecom"]
     assert first_kwargs["skip_graph_sync"] is True
 
 

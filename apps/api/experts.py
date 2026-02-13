@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from statistics import mean
@@ -22,6 +23,24 @@ from apps.documents.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+_TELECOM_TERMS = {
+    "5g",
+    "6g",
+    "ran",
+    "o-ran",
+    "ric",
+    "xapp",
+    "network",
+    "networks",
+    "slicing",
+    "orchestration",
+    "core",
+    "telecom",
+    "telecommunications",
+    "wireless",
+    "radio",
+}
 
 _CLEARANCE_ALLOWED_LEVELS = {
     SecurityLevel.PUBLIC: (SecurityLevel.PUBLIC,),
@@ -144,7 +163,11 @@ class ExpertRankingService:
                 "experts": [],
             }
 
-        experts = self._build_expert_rows(paper_matches=paper_matches)
+        query_terms = self._tokenize(query_text)
+        experts = self._build_expert_rows(
+            paper_matches=paper_matches,
+            query_terms=query_terms,
+        )
         experts.sort(key=lambda row: row["_score"], reverse=True)
         ranked = experts[: self._top_experts]
 
@@ -262,6 +285,7 @@ class ExpertRankingService:
         self,
         *,
         paper_matches: dict[int, PaperMatch],
+        query_terms: set[str],
     ) -> list[dict[str, object]]:
         paper_ids = sorted(paper_matches)
 
@@ -329,6 +353,7 @@ class ExpertRankingService:
                 self._build_expert_payload(
                     accumulator=accumulator,
                     max_stored_centrality=float(max_stored_centrality),
+                    query_terms=query_terms,
                 )
             )
 
@@ -339,6 +364,7 @@ class ExpertRankingService:
         *,
         accumulator: ExpertAccumulator,
         max_stored_centrality: float,
+        query_terms: set[str],
     ) -> dict[str, object]:
         paper_ranked = sorted(
             accumulator.papers,
@@ -354,6 +380,11 @@ class ExpertRankingService:
         semantic_relevance = self._semantic_relevance(top_papers)
         recency_boost = self._recency_boost(top_papers)
         topic_coverage = self._topic_coverage(accumulator.topic_counts)
+        query_alignment = self._query_alignment(
+            query_terms=query_terms,
+            top_papers=top_papers,
+            topic_counts=accumulator.topic_counts,
+        )
         graph_centrality = self._graph_centrality(
             accumulator=accumulator,
             max_stored_centrality=max_stored_centrality,
@@ -363,6 +394,7 @@ class ExpertRankingService:
             semantic_relevance=semantic_relevance,
             recency_boost=recency_boost,
             topic_coverage=topic_coverage,
+            query_alignment=query_alignment,
             graph_centrality=graph_centrality,
         )
 
@@ -394,14 +426,18 @@ class ExpertRankingService:
                 "semantic_relevance": round(semantic_relevance, 4),
                 "recency_boost": round(recency_boost, 4),
                 "topic_coverage": round(topic_coverage, 4),
+                "query_alignment": round(query_alignment, 4),
                 "graph_centrality": round(graph_centrality, 4),
             },
+            "matched_paper_count": len(accumulator.papers),
             "why_ranked": self._why_ranked(
                 top_papers=top_papers,
                 top_topics=top_topics,
                 semantic_relevance=semantic_relevance,
                 recency_boost=recency_boost,
+                query_alignment=query_alignment,
                 graph_centrality=graph_centrality,
+                matched_paper_count=len(accumulator.papers),
             ),
             "_score": round(total_score, 6),
         }
@@ -438,6 +474,39 @@ class ExpertRankingService:
         unique_topics = len(topic_counts)
         return min(1.0, unique_topics / float(self._topic_target))
 
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        return {token for token in re.findall(r"[a-zA-Z0-9]+", text.lower()) if len(token) >= 3}
+
+    def _query_alignment(
+        self,
+        *,
+        query_terms: set[str],
+        top_papers: list[ExpertPaperSummary],
+        topic_counts: dict[str, int],
+    ) -> float:
+        if not query_terms:
+            return 0.0
+
+        corpus_terms: set[str] = set()
+        for paper in top_papers:
+            corpus_terms |= self._tokenize(paper.title)
+        for topic_name in topic_counts:
+            corpus_terms |= self._tokenize(topic_name)
+
+        if not corpus_terms:
+            return 0.0
+
+        base_overlap = len(query_terms & corpus_terms) / float(len(query_terms))
+        telecom_query_terms = {term for term in query_terms if term in _TELECOM_TERMS}
+        if telecom_query_terms:
+            telecom_overlap = len(telecom_query_terms & corpus_terms) / float(
+                len(telecom_query_terms)
+            )
+            return max(0.0, min(1.0, (0.75 * base_overlap) + (0.25 * telecom_overlap)))
+
+        return max(0.0, min(1.0, base_overlap))
+
     def _graph_centrality(
         self,
         *,
@@ -459,20 +528,23 @@ class ExpertRankingService:
         semantic_relevance: float,
         recency_boost: float,
         topic_coverage: float,
+        query_alignment: float,
         graph_centrality: float,
     ) -> float:
         if self._graph_centrality_enabled:
             return (
-                (0.50 * semantic_relevance)
-                + (0.20 * recency_boost)
-                + (0.15 * topic_coverage)
+                (0.42 * semantic_relevance)
+                + (0.18 * recency_boost)
+                + (0.13 * topic_coverage)
+                + (0.12 * query_alignment)
                 + (0.15 * graph_centrality)
             )
 
         return (
-            (0.60 * semantic_relevance)
-            + (0.25 * recency_boost)
+            (0.50 * semantic_relevance)
+            + (0.20 * recency_boost)
             + (0.15 * topic_coverage)
+            + (0.15 * query_alignment)
         )
 
     def _paper_recency_score(self, published_date: date | None) -> float:
@@ -491,7 +563,9 @@ class ExpertRankingService:
         top_topics: list[str],
         semantic_relevance: float,
         recency_boost: float,
+        query_alignment: float,
         graph_centrality: float,
+        matched_paper_count: int,
     ) -> str:
         if not top_papers:
             return "Ranked due to broad author relevance across matched papers."
@@ -505,6 +579,9 @@ class ExpertRankingService:
         recency_label = (
             "recent publications" if recency_boost >= 0.50 else "historical publications"
         )
+        alignment_label = (
+            "strong query alignment" if query_alignment >= 0.50 else "moderate query alignment"
+        )
 
         if top_topics:
             centrality_clause = ""
@@ -512,11 +589,16 @@ class ExpertRankingService:
                 centrality_clause = " and graph centrality strength"
             return (
                 f"Ranked for {semantic_label} via '{lead_paper}', "
-                f"{recency_label}, and coverage of topics like {', '.join(top_topics[:2])}"
+                f"{alignment_label}, {recency_label}, "
+                f"{matched_paper_count} matched papers, and coverage of topics like "
+                f"{', '.join(top_topics[:2])}"
                 f"{centrality_clause}."
             )
 
-        return f"Ranked for {semantic_label} via '{lead_paper}' and {recency_label}."
+        return (
+            f"Ranked for {semantic_label} via '{lead_paper}', {alignment_label}, "
+            f"{recency_label}, and {matched_paper_count} matched papers."
+        )
 
     def _save_audit(
         self,

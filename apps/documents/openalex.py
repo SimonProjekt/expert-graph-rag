@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
@@ -37,6 +38,37 @@ from apps.documents.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+_TELECOM_TERMS = {
+    "5g",
+    "6g",
+    "ran",
+    "o-ran",
+    "ric",
+    "xapp",
+    "network",
+    "networks",
+    "slice",
+    "slicing",
+    "orchestration",
+    "telecom",
+    "telecommunications",
+    "wireless",
+    "radio",
+    "core",
+    "gnodeb",
+}
+_OFFTOPIC_CONCEPTS = {
+    "art",
+    "arts",
+    "visual arts",
+    "music",
+    "musical",
+    "history",
+    "philosophy",
+    "literature",
+    "business",
+}
 
 
 def _log_event(event: str, **fields: Any) -> None:
@@ -114,6 +146,8 @@ class OpenAlexIngestionService:
         *,
         client: OpenAlexClient,
         security_level_ratios: tuple[int, int, int],
+        min_query_coverage: float | None = None,
+        max_topics_per_work: int | None = None,
     ) -> None:
         if len(security_level_ratios) != 3:
             raise ValueError(
@@ -124,6 +158,20 @@ class OpenAlexIngestionService:
 
         self._client = client
         self._public_ratio, self._internal_ratio, _ = security_level_ratios
+        self._min_query_coverage = (
+            float(min_query_coverage)
+            if min_query_coverage is not None
+            else float(getattr(settings, "OPENALEX_MIN_QUERY_COVERAGE", 0.18))
+        )
+        self._max_topics_per_work = (
+            int(max_topics_per_work)
+            if max_topics_per_work is not None
+            else int(getattr(settings, "OPENALEX_MAX_TOPICS_PER_WORK", 8))
+        )
+        if self._min_query_coverage < 0 or self._min_query_coverage > 1:
+            raise ValueError("min_query_coverage must be between 0 and 1.")
+        if self._max_topics_per_work <= 0:
+            raise ValueError("max_topics_per_work must be greater than zero.")
 
     def ingest(
         self,
@@ -175,9 +223,18 @@ class OpenAlexIngestionService:
         except OpenAlexClientError as exc:
             raise OpenAlexIngestionError(str(exc)) from exc
 
+        query_terms = self._tokenize(query)
         for raw_work in works:
             try:
                 normalized_work = self._client.normalize_work(raw_work)
+                if not self._is_relevant_work(work=normalized_work, query_terms=query_terms):
+                    counters["works_skipped"] += 1
+                    _log_event(
+                        "openalex.work_skipped",
+                        reason="low_query_alignment",
+                        external_id=normalized_work.external_id,
+                    )
+                    continue
                 result = self._upsert_work(normalized_work)
             except (OpenAlexIngestionError, OpenAlexClientError) as exc:
                 counters["works_skipped"] += 1
@@ -441,12 +498,56 @@ class OpenAlexIngestionService:
             )
         return result
 
+    def _extract_topics(self, work: OpenAlexWorkRecord) -> list[OpenAlexTopicInput]:
+        paper_terms = self._tokenize(f"{work.title} {work.abstract}")
+        topics: list[OpenAlexTopicInput] = []
+        for concept in work.concepts:
+            concept_name = concept.name.strip()
+            concept_terms = self._tokenize(concept_name)
+            if not concept_terms:
+                continue
+            if concept_name.lower() in _OFFTOPIC_CONCEPTS:
+                continue
+            if (
+                concept_terms & _TELECOM_TERMS
+                or concept_terms & paper_terms
+                or len(topics) < 3
+            ):
+                topics.append(
+                    OpenAlexTopicInput(external_id=concept.external_id, name=concept_name)
+                )
+                if len(topics) >= self._max_topics_per_work:
+                    break
+        return topics
+
+    def _is_relevant_work(self, *, work: OpenAlexWorkRecord, query_terms: set[str]) -> bool:
+        if not query_terms:
+            return True
+
+        corpus_terms = self._tokenize(
+            " ".join([work.title, work.abstract, *(concept.name for concept in work.concepts)])
+        )
+        if not corpus_terms:
+            return False
+
+        overlap = query_terms & corpus_terms
+        overlap_count = len(overlap)
+        if overlap_count == 0:
+            return False
+
+        coverage = overlap_count / float(len(query_terms))
+        if coverage < self._min_query_coverage and overlap_count < 2:
+            return False
+
+        telecom_query_terms = {term for term in query_terms if term in _TELECOM_TERMS}
+        if telecom_query_terms and not (telecom_query_terms & corpus_terms):
+            return False
+
+        return True
+
     @staticmethod
-    def _extract_topics(work: OpenAlexWorkRecord) -> list[OpenAlexTopicInput]:
-        return [
-            OpenAlexTopicInput(external_id=concept.external_id, name=concept.name)
-            for concept in work.concepts
-        ]
+    def _tokenize(text: str) -> set[str]:
+        return {token for token in re.findall(r"[a-zA-Z0-9]+", text.lower()) if len(token) >= 3}
 
 
 class OpenAlexReadThroughService:

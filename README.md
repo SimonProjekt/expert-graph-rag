@@ -53,7 +53,7 @@ docker compose exec web python manage.py seed_openalex --works 50 --authors 30 -
 Topic-based seed examples:
 
 ```bash
-docker compose exec web python manage.py seed_openalex --query "telecom optimization" --topic telecom --topic rag --topic knowledge-graph
+docker compose exec web python manage.py seed_openalex --query "5G RAN optimization" --topic telecom
 ```
 
 ## OpenAlex Configuration
@@ -67,6 +67,8 @@ Add these to `.env`:
 - `OPENALEX_RATE_LIMIT_PER_SEC` (alias for `OPENALEX_RATE_LIMIT_RPS`)
 - `OPENALEX_CACHE_ENABLED=true|false`
 - `OPENALEX_CACHE_TTL_SECONDS`
+- `OPENALEX_MIN_QUERY_COVERAGE` (0-1 query alignment threshold for ingestion)
+- `OPENALEX_MAX_TOPICS_PER_WORK` (caps noisy concept/topic expansion)
 
 You can generate an OpenAlex key from your OpenAlex account/dashboard, then place it in `.env`.
 
@@ -102,7 +104,7 @@ Search responses also include:
 - `hidden_count` (clearance-filtered hits)
 - `took_ms` (search latency)
 - `live_fetch` metadata (attempt/result/counts/duration)
-- `score_breakdown` (`semantic_relevance`, `graph_authority`, `graph_centrality`)
+- `score_breakdown` (`semantic_relevance`, `query_alignment`, `graph_authority`, `graph_centrality`)
 - `why_matched` and `graph_path` explainability fields
 
 ## Hybrid Graph Retrieval (Step 3)
@@ -196,6 +198,8 @@ docker compose exec web python manage.py stats_openalex
 - `federated learning for telecom networks`
 - `core network anomaly detection`
 - `energy efficient base station control`
+- `near-real-time RIC optimization for massive MIMO`
+- `telecom digital twins for radio resource management`
 
 ## 2-Minute Demo Flow
 

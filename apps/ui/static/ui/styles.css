@@ -348,6 +348,14 @@ select {
   background: var(--topic);
 }
 
+.legend-collab {
+  background: #9aa5b1;
+}
+
+.experts-intro {
+  margin: 2px 0 10px;
+}
+
 .main-panel {
   display: grid;
   gap: 12px;
