@@ -92,6 +92,23 @@
             <option value="full">Full</option>
           </select>
 
+          <label for="graph-expansion">
+            Query expansion depth (<span id="graph-expansion-value">2</span> hops)
+          </label>
+          <input id="graph-expansion" type="range" min="1" max="4" step="1" value="2">
+          <p class="hint hint-tight">
+            1 = query to papers, 2 = add authors/topics, 3+ = include wider collaborator context.
+          </p>
+
+          <label class="toggle-row" for="toggle-path-only">
+            <input id="toggle-path-only" type="checkbox">
+            <span>Path-only focus mode</span>
+          </label>
+          <label class="toggle-row" for="toggle-cluster-mode">
+            <input id="toggle-cluster-mode" type="checkbox">
+            <span>Cluster dense neighborhoods</span>
+          </label>
+
           <label class="toggle-row" for="toggle-authors">
             <input id="toggle-authors" type="checkbox" checked>
             <span>Show Authors</span>

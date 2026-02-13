@@ -225,10 +225,20 @@ select {
   padding: 9px 10px;
 }
 
+input[type="range"] {
+  width: 100%;
+  margin-top: 6px;
+  accent-color: var(--brand);
+}
+
 .hint {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.hint-tight {
+  margin-top: 5px;
 }
 
 .primary-button,

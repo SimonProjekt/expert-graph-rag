@@ -29,3 +29,5 @@ def test_ui_routes_smoke(client) -> None:
     assert "Try the Demo" in landing_content
     assert "Expert Graph RAG" in home_content
     assert "Try These Queries" in home_content
+    assert "Query expansion depth" in home_content
+    assert "Path-only focus mode" in home_content

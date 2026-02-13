@@ -15,6 +15,7 @@
   const CACHE_LIMIT = 10;
   const DEBOUNCE_MS = 300;
   const REQUEST_TIMEOUT_MS = 25000;
+  const GRAPH_MAX_EXPANSION = 4;
 
   const state = {
     query: (bootstrap.initialQuery || "").trim(),
@@ -38,6 +39,9 @@
       nodeLookup: new Map(),
       focusNodeId: null,
       density: "balanced",
+      expansionDepth: 2,
+      pathOnly: false,
+      clusterMode: false,
       truncatedAuthors: 0,
       truncatedTopics: 0,
       collaboratorEdges: 0,
@@ -89,6 +93,10 @@
       fitButton: document.getElementById("graph-fit"),
       resetButton: document.getElementById("graph-reset"),
       densitySelect: document.getElementById("graph-density"),
+      expansionRange: document.getElementById("graph-expansion"),
+      expansionValue: document.getElementById("graph-expansion-value"),
+      togglePathOnly: document.getElementById("toggle-path-only"),
+      toggleClusterMode: document.getElementById("toggle-cluster-mode"),
       toggleAuthors: document.getElementById("toggle-authors"),
       togglePapers: document.getElementById("toggle-papers"),
       toggleTopics: document.getElementById("toggle-topics"),
@@ -241,7 +249,24 @@
       });
     }
 
+    if (dom.graph.expansionRange) {
+      const handleExpansionChange = () => {
+        const nextDepth = clampGraphExpansion(dom.graph.expansionRange.value);
+        if (nextDepth === state.graph.expansionDepth) {
+          updateGraphExpansionLabel();
+          return;
+        }
+        state.graph.expansionDepth = nextDepth;
+        updateGraphExpansionLabel();
+        applyGraphFilters();
+      };
+      dom.graph.expansionRange.addEventListener("input", handleExpansionChange);
+      dom.graph.expansionRange.addEventListener("change", handleExpansionChange);
+    }
+
     [
+      dom.graph.togglePathOnly,
+      dom.graph.toggleClusterMode,
       dom.graph.toggleAuthors,
       dom.graph.togglePapers,
       dom.graph.toggleTopics,
@@ -251,6 +276,10 @@
         return;
       }
       toggle.addEventListener("change", () => {
+        state.graph.pathOnly = !!(dom.graph.togglePathOnly && dom.graph.togglePathOnly.checked);
+        state.graph.clusterMode = !!(
+          dom.graph.toggleClusterMode && dom.graph.toggleClusterMode.checked
+        );
         applyGraphFilters();
       });
     });
@@ -303,6 +332,16 @@
     if (dom.graph.densitySelect) {
       dom.graph.densitySelect.value = state.graph.density;
     }
+    if (dom.graph.expansionRange) {
+      dom.graph.expansionRange.value = String(state.graph.expansionDepth);
+    }
+    if (dom.graph.togglePathOnly) {
+      dom.graph.togglePathOnly.checked = state.graph.pathOnly;
+    }
+    if (dom.graph.toggleClusterMode) {
+      dom.graph.toggleClusterMode.checked = state.graph.clusterMode;
+    }
+    updateGraphExpansionLabel();
   }
 
   function onQueryChanged() {
@@ -948,7 +987,10 @@
     }
 
     const filtered = filteredGraphData();
-    const styled = applyGraphPathHighlight(filtered);
+    const expanded = applyQueryExpansion(filtered);
+    const pathScoped = applyPathOnlyView(expanded);
+    state.graph.focusNodeId = pathScoped.focusNodeId;
+    const styled = applyGraphPathHighlight(pathScoped, pathScoped.focusNodeId);
     const minCanvasHeight = Math.max(dom.graph.canvas.clientHeight || 0, 520);
     dom.graph.canvas.style.height = `${minCanvasHeight}px`;
 
@@ -1017,7 +1059,25 @@
             closeNodePanel();
             return;
           }
-          const node = state.graph.nodeLookup.get(params.nodes[0]);
+          const clickedNodeId = params.nodes[0];
+          if (
+            typeof state.graph.network.isCluster === "function" &&
+            state.graph.network.isCluster(clickedNodeId)
+          ) {
+            const clusterNode = state.graph.network.body?.data?.nodes?.get(clickedNodeId);
+            openNodePanel({
+              id: clickedNodeId,
+              group: "cluster",
+              details: {
+                Type: "Cluster",
+                Label: clusterNode?.label || "Grouped node",
+                Summary: "Disable cluster mode to inspect individual nodes.",
+              },
+            });
+            return;
+          }
+
+          const node = state.graph.nodeLookup.get(clickedNodeId);
           if (!node) {
             state.graph.focusNodeId = null;
             renderGraphData();
@@ -1029,6 +1089,7 @@
           openNodePanel(node);
         });
 
+        applyClusterMode(styled.nodes);
         state.graph.network.fit({ animation: true });
         return;
       }
@@ -1037,6 +1098,7 @@
         nodes: new window.vis.DataSet(styled.nodes),
         edges: new window.vis.DataSet(styled.edges),
       });
+      applyClusterMode(styled.nodes);
       state.graph.network.redraw();
       state.graph.network.fit({ animation: true });
     } catch (_error) {
@@ -1077,8 +1139,80 @@
     return { nodes, edges };
   }
 
-  function applyGraphPathHighlight(filtered) {
-    const focusNodeId = state.graph.focusNodeId;
+  function applyQueryExpansion(filtered) {
+    const expansionDepth = clampGraphExpansion(state.graph.expansionDepth);
+    const queryNodeId = "query:current";
+    const nodeDistance = computeNodeDistances({
+      startNodeId: queryNodeId,
+      edges: filtered.edges,
+      maxDepth: expansionDepth,
+    });
+
+    const allowedNodeIds = new Set([queryNodeId]);
+    nodeDistance.forEach((distance, nodeId) => {
+      if (distance <= expansionDepth) {
+        allowedNodeIds.add(nodeId);
+      }
+    });
+
+    const nodes = filtered.nodes.filter((node) => allowedNodeIds.has(node.id));
+    const visibleNodeIds = new Set(nodes.map((node) => node.id));
+    const edges = filtered.edges.filter(
+      (edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to)
+    );
+    return { nodes, edges };
+  }
+
+  function applyPathOnlyView(filtered) {
+    const pathOnlyEnabled = state.graph.pathOnly;
+    const visibleNodeIds = new Set(filtered.nodes.map((node) => node.id));
+
+    let focusNodeId = state.graph.focusNodeId;
+    if (!focusNodeId || !visibleNodeIds.has(focusNodeId)) {
+      focusNodeId = null;
+    }
+
+    if (!pathOnlyEnabled) {
+      return { ...filtered, focusNodeId };
+    }
+
+    if (!focusNodeId) {
+      focusNodeId = pickDefaultPathTarget(filtered);
+    }
+    if (!focusNodeId) {
+      return { ...filtered, focusNodeId: null };
+    }
+
+    const path = computePathToQuery({
+      targetNodeId: focusNodeId,
+      edges: filtered.edges,
+    });
+    if (!path) {
+      return { ...filtered, focusNodeId: null };
+    }
+
+    const nodes = filtered.nodes.filter((node) => path.nodeIds.has(node.id));
+    const edges = filtered.edges.filter((edge) => path.edgeIds.has(edge.id));
+    return { nodes, edges, focusNodeId };
+  }
+
+  function pickDefaultPathTarget(filtered) {
+    const directMatch = filtered.edges.find(
+      (edge) => edge.from === "query:current" && String(edge.to).startsWith("paper:")
+    );
+    if (directMatch) {
+      return directMatch.to;
+    }
+    const firstPaper = filtered.nodes.find((node) => node.group === "paper");
+    if (firstPaper) {
+      return firstPaper.id;
+    }
+    return null;
+  }
+
+  function applyGraphPathHighlight(filtered, focusOverride) {
+    const visibleNodeIds = new Set(filtered.nodes.map((node) => node.id));
+    const focusNodeId = visibleNodeIds.has(focusOverride) ? focusOverride : null;
     if (!focusNodeId) {
       return {
         nodes: filtered.nodes.map((node) => ({
@@ -1123,6 +1257,92 @@
     });
 
     return { nodes, edges };
+  }
+
+  function applyClusterMode(nodes) {
+    if (!state.graph.clusterMode || !state.graph.network) {
+      return;
+    }
+
+    const groupCounts = nodes.reduce((counts, node) => {
+      const current = counts.get(node.group) || 0;
+      counts.set(node.group, current + 1);
+      return counts;
+    }, new Map());
+
+    clusterGraphGroup("author", Number(groupCounts.get("author") || 0), 14);
+    clusterGraphGroup("topic", Number(groupCounts.get("topic") || 0), 16);
+  }
+
+  function clusterGraphGroup(group, count, minCount) {
+    if (!state.graph.network || count < minCount) {
+      return;
+    }
+
+    const clusterId = `cluster:${group}`;
+    const color = graphNodeColor(group, false, false);
+    const labelSuffix = count === 1 ? "" : "s";
+
+    try {
+      state.graph.network.cluster({
+        joinCondition(nodeOptions) {
+          return nodeOptions.group === group;
+        },
+        clusterNodeProperties: {
+          id: clusterId,
+          label: `${count} ${group}${labelSuffix}`,
+          group,
+          shape: "database",
+          value: Math.max(18, Math.min(42, Math.round(count / 2))),
+          color,
+          title: `Clustered ${count} ${group}${labelSuffix}`,
+        },
+      });
+    } catch (_error) {
+      // Keep graph interactive even if clustering fails on a specific dataset.
+    }
+  }
+
+  function computeNodeDistances({ startNodeId, edges, maxDepth }) {
+    const adjacency = new Map();
+    edges.forEach((edge) => {
+      const left = adjacency.get(edge.from) || [];
+      left.push(edge.to);
+      adjacency.set(edge.from, left);
+
+      const right = adjacency.get(edge.to) || [];
+      right.push(edge.from);
+      adjacency.set(edge.to, right);
+    });
+
+    const distanceByNode = new Map([[startNodeId, 0]]);
+    const queue = [startNodeId];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) {
+        continue;
+      }
+
+      const currentDistance = distanceByNode.get(current);
+      if (!Number.isFinite(currentDistance)) {
+        continue;
+      }
+      if (currentDistance >= maxDepth) {
+        continue;
+      }
+
+      const neighbors = adjacency.get(current) || [];
+      neighbors.forEach((neighbor) => {
+        if (distanceByNode.has(neighbor)) {
+          return;
+        }
+        distanceByNode.set(neighbor, currentDistance + 1);
+        queue.push(neighbor);
+      });
+    }
+
+    return distanceByNode;
   }
 
   function computePathToQuery({ targetNodeId, edges }) {
@@ -1225,6 +1445,7 @@
     if (state.graph.focusNodeId && !state.graph.nodeLookup.has(state.graph.focusNodeId)) {
       state.graph.focusNodeId = null;
     }
+    renderGraphMeta();
     renderGraphData();
   }
 
@@ -1252,7 +1473,15 @@
         ? ` · truncated ${extraAuthors} authors, ${extraTopics} topics`
         : "";
     const collabText = collabEdges > 0 ? ` · ${collabEdges} collaborator links` : "";
-    dom.graph.meta.textContent = `${nodesCount} nodes · ${edgesCount} edges${collabText}${truncationText}`;
+    const modeText = [
+      `depth ${state.graph.expansionDepth}`,
+      state.graph.pathOnly ? "path-only" : null,
+      state.graph.clusterMode ? "clustered" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const modeSuffix = modeText ? ` · ${modeText}` : "";
+    dom.graph.meta.textContent = `${nodesCount} nodes · ${edgesCount} edges${collabText}${truncationText}${modeSuffix}`;
   }
 
   function openNodePanel(node) {
@@ -1260,7 +1489,8 @@
       return;
     }
 
-    dom.graph.nodeTitle.textContent = `${node.group[0].toUpperCase()}${node.group.slice(1)} Details`;
+    const groupName = String(node.group || "node");
+    dom.graph.nodeTitle.textContent = `${groupName[0].toUpperCase()}${groupName.slice(1)} Details`;
     const details = node.details || {};
 
     dom.graph.nodeDetails.innerHTML = Object.entries(details)
@@ -1751,6 +1981,21 @@
       return 0;
     }
     return Math.max(0, Math.min(1, value));
+  }
+
+  function updateGraphExpansionLabel() {
+    if (!dom.graph.expansionValue) {
+      return;
+    }
+    dom.graph.expansionValue.textContent = String(clampGraphExpansion(state.graph.expansionDepth));
+  }
+
+  function clampGraphExpansion(rawDepth) {
+    const parsed = Number.parseInt(String(rawDepth), 10);
+    if (!Number.isFinite(parsed)) {
+      return 2;
+    }
+    return Math.max(1, Math.min(GRAPH_MAX_EXPANSION, parsed));
   }
 
   function parseBootstrap(text) {
