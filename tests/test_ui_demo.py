@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+import pytest
+
+from apps.documents.models import Author
+
+
+@pytest.mark.django_db
+def test_ui_routes_smoke(client) -> None:
+    author = Author.objects.create(
+        name="Smoke Test Author",
+        external_id="author:ui:smoke:001",
+        institution_name="Demo Institute",
+    )
+
+    home_response = client.get("/")
+    login_response = client.get("/demo/login/")
+    profile_response = client.get(f"/experts/{author.id}/")
+
+    assert home_response.status_code == 200
+    assert login_response.status_code == 200
+    assert profile_response.status_code == 200
+
+    home_content = home_response.content.decode("utf-8")
+    assert "Expert Graph RAG" in home_content
+    assert "Try These Queries" in home_content

@@ -1,0 +1,92 @@
+[
+  {
+    "title": "Federated Learning for RAN Optimization in 5G Networks",
+    "abstract": "This study evaluates federated learning strategies for radio access network optimization with privacy constraints and near-real-time adaptation across base stations.",
+    "published_date": "2024-03-12",
+    "doi": "10.5555/demo-ran-fed-001",
+    "external_id": "openalex:W_demo_001",
+    "security_level": "PUBLIC",
+    "authors": [
+      {
+        "name": "Maya Andersson",
+        "external_id": "openalex:A_demo_001",
+        "institution_name": "Nordic Telecom Labs"
+      },
+      {
+        "name": "Omar Rahman",
+        "external_id": "openalex:A_demo_002",
+        "institution_name": "Nordic Telecom Labs"
+      }
+    ],
+    "topics": [
+      {
+        "name": "federated learning",
+        "external_id": "openalex:T_demo_001"
+      },
+      {
+        "name": "ran optimization",
+        "external_id": "openalex:T_demo_002"
+      }
+    ]
+  },
+  {
+    "title": "Knowledge Graph Retrieval for Telecom Incident Triage",
+    "abstract": "We combine graph traversal and vector retrieval to accelerate telecom incident triage and improve explainability for operations teams.",
+    "published_date": "2024-09-02",
+    "doi": "10.5555/demo-kg-telecom-002",
+    "external_id": "openalex:W_demo_002",
+    "security_level": "INTERNAL",
+    "authors": [
+      {
+        "name": "Omar Rahman",
+        "external_id": "openalex:A_demo_002",
+        "institution_name": "Nordic Telecom Labs"
+      },
+      {
+        "name": "Lina Dupont",
+        "external_id": "openalex:A_demo_003",
+        "institution_name": "Signal Analytics Group"
+      }
+    ],
+    "topics": [
+      {
+        "name": "knowledge graph",
+        "external_id": "openalex:T_demo_003"
+      },
+      {
+        "name": "incident response",
+        "external_id": "openalex:T_demo_004"
+      }
+    ]
+  },
+  {
+    "title": "Confidential RAN Capacity Planning Playbook",
+    "abstract": "Internal playbook for confidential capacity planning policies, escalation criteria, and restricted optimization workflows.",
+    "published_date": "2025-01-14",
+    "doi": "10.5555/demo-ran-conf-003",
+    "external_id": "openalex:W_demo_003",
+    "security_level": "CONFIDENTIAL",
+    "authors": [
+      {
+        "name": "Lina Dupont",
+        "external_id": "openalex:A_demo_003",
+        "institution_name": "Signal Analytics Group"
+      },
+      {
+        "name": "Jonas Nilsson",
+        "external_id": "openalex:A_demo_004",
+        "institution_name": "Secure Radio Systems"
+      }
+    ],
+    "topics": [
+      {
+        "name": "capacity planning",
+        "external_id": "openalex:T_demo_005"
+      },
+      {
+        "name": "ran optimization",
+        "external_id": "openalex:T_demo_002"
+      }
+    ]
+  }
+]

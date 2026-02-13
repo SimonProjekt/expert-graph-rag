@@ -1,0 +1,231 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expert Graph RAG Demo</title>
+  <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
+  <script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js" defer></script>
+  <script src="{% static 'ui/dashboard.js' %}" defer></script>
+</head>
+<body>
+  {{ ui_bootstrap|json_script:"ui-bootstrap" }}
+  <main class="app-shell" id="app-shell">
+    <header class="top-nav">
+      <div class="brand-block">
+        <p class="kicker">Recruiter Demo</p>
+        <h1>Expert Graph RAG</h1>
+      </div>
+
+      <nav class="top-nav-links" aria-label="Primary">
+        <a href="#panel-papers">Papers</a>
+        <a href="#panel-experts">Experts</a>
+        <a href="#panel-graph">Graph</a>
+        <a href="#panel-ask">Ask</a>
+      </nav>
+
+      <div class="mode-badges" aria-label="Demo Mode Status">
+        {% if llm_enabled %}
+          <span class="badge status-ok">Demo Mode (LLM Enabled)</span>
+        {% else %}
+          <span class="badge status-warn">Demo Mode (LLM Disabled)</span>
+        {% endif %}
+        <span class="badge badge-outline" id="clearance-badge">Clearance: {{ clearance }}</span>
+        <span class="badge badge-outline">Role: {{ session_role }}</span>
+      </div>
+
+      <div class="session-actions">
+        <a class="button-link" href="{% url 'demo_login' %}?next={{ request.get_full_path|urlencode }}">Change demo role</a>
+        <form method="post" action="{% url 'demo_logout' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="ghost-button">Logout</button>
+        </form>
+      </div>
+    </header>
+
+    <div class="layout-grid">
+      <aside class="left-panel" aria-label="Filters">
+        <section class="panel">
+          <h2>Search Controls</h2>
+          <label for="query-input">Main query</label>
+          <input id="query-input" type="text" value="{{ query }}" placeholder="e.g. graph retrieval compliance" autocomplete="off">
+          <p class="hint">Auto-search runs after typing stops for 300ms.</p>
+
+          <label for="clearance-select">Clearance</label>
+          <select id="clearance-select">
+            {% for option in clearance_options %}
+              <option value="{{ option }}" {% if clearance == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+
+          <label for="paper-sort">Papers sorting</label>
+          <select id="paper-sort">
+            <option value="relevance" {% if sort_order == 'relevance' %}selected{% endif %}>Relevance</option>
+            <option value="recency" {% if sort_order == 'recency' %}selected{% endif %}>Recency</option>
+          </select>
+
+          <button id="run-search" class="primary-button" type="button">Run now</button>
+        </section>
+
+        <section class="panel">
+          <h2>Try These Queries</h2>
+          <div class="chips" id="example-queries">
+            {% for sample in example_queries %}
+              <button type="button" class="chip" data-query="{{ sample }}">{{ sample }}</button>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Graph Filters</h2>
+          <label class="toggle-row" for="toggle-authors">
+            <input id="toggle-authors" type="checkbox" checked>
+            <span>Show Authors</span>
+          </label>
+          <label class="toggle-row" for="toggle-papers">
+            <input id="toggle-papers" type="checkbox" checked>
+            <span>Show Papers</span>
+          </label>
+          <label class="toggle-row" for="toggle-topics">
+            <input id="toggle-topics" type="checkbox" checked>
+            <span>Show Topics</span>
+          </label>
+
+          <div class="graph-actions">
+            <button id="graph-fit" type="button" class="ghost-button">Zoom to fit</button>
+            <button id="graph-reset" type="button" class="ghost-button">Reset view</button>
+          </div>
+
+          <div class="legend" aria-label="Graph legend">
+            <span><i class="legend-dot legend-author"></i>Author</span>
+            <span><i class="legend-dot legend-paper"></i>Paper</span>
+            <span><i class="legend-dot legend-topic"></i>Topic</span>
+          </div>
+        </section>
+      </aside>
+
+      <section class="main-panel">
+        <nav class="tab-nav" role="tablist" aria-label="Result tabs">
+          <button id="tab-papers" class="tab-button" role="tab" aria-selected="false" aria-controls="panel-papers" tabindex="-1" data-tab="papers">Papers</button>
+          <button id="tab-experts" class="tab-button" role="tab" aria-selected="false" aria-controls="panel-experts" tabindex="-1" data-tab="experts">Experts</button>
+          <button id="tab-graph" class="tab-button" role="tab" aria-selected="false" aria-controls="panel-graph" tabindex="-1" data-tab="graph">Graph</button>
+          <button id="tab-ask" class="tab-button" role="tab" aria-selected="false" aria-controls="panel-ask" tabindex="-1" data-tab="ask">Ask</button>
+        </nav>
+
+        <section id="ui-status" class="status-banner" aria-live="polite" hidden></section>
+
+        <section id="redaction-banner" class="redaction-banner" role="status" aria-live="polite" hidden>
+          <strong>Restricted content filtered.</strong>
+          <span id="redaction-count">0</span> match(es) were hidden due to the current clearance level.
+        </section>
+
+        <section id="panel-empty" class="panel state-card">
+          <h2>Start with a query</h2>
+          <p>Use a sample query or type your own to load papers, experts, graph context, and grounded answers.</p>
+        </section>
+
+        <section id="panel-papers" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-papers" hidden>
+          <div class="panel-header">
+            <h2>Papers</h2>
+            <p class="muted" id="papers-meta">No results yet</p>
+          </div>
+
+          <div id="papers-loading" class="skeleton-grid" hidden>
+            <article class="skeleton-card"></article>
+            <article class="skeleton-card"></article>
+            <article class="skeleton-card"></article>
+          </div>
+
+          <div id="papers-error" class="state-card error" hidden></div>
+          <div id="papers-empty" class="state-card" hidden>No papers found for this query and clearance.</div>
+          <div id="papers-results" class="results-grid"></div>
+        </section>
+
+        <section id="panel-experts" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-experts" hidden>
+          <div class="panel-header">
+            <h2>Experts</h2>
+            <p class="muted" id="experts-meta">No results yet</p>
+          </div>
+
+          <div id="experts-loading" class="skeleton-grid" hidden>
+            <article class="skeleton-card"></article>
+            <article class="skeleton-card"></article>
+          </div>
+
+          <div id="experts-error" class="state-card error" hidden></div>
+          <div id="experts-empty" class="state-card" hidden>No experts found for this query and clearance.</div>
+          <div id="experts-results" class="results-grid"></div>
+        </section>
+
+        <section id="panel-graph" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-graph" hidden>
+          <div class="panel-header">
+            <h2>Graph</h2>
+            <p class="muted" id="graph-meta">No graph yet</p>
+          </div>
+
+          <div id="graph-loading" class="skeleton-graph" hidden></div>
+          <div id="graph-error" class="state-card error" hidden></div>
+          <div id="graph-empty" class="state-card" hidden>No graph data found for this query and clearance.</div>
+
+          <div class="graph-shell" id="graph-shell" hidden>
+            <div id="graph-canvas" aria-label="Author paper topic graph"></div>
+            <aside id="graph-node-panel" class="node-panel" role="dialog" aria-modal="false" aria-labelledby="graph-node-title" hidden>
+              <div class="node-panel-header">
+                <h3 id="graph-node-title">Node Details</h3>
+                <button id="graph-node-close" type="button" class="ghost-button">Close</button>
+              </div>
+              <dl id="graph-node-details" class="node-details"></dl>
+            </aside>
+          </div>
+        </section>
+
+        <section id="panel-ask" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-ask" hidden>
+          <div class="panel-header">
+            <h2>Ask</h2>
+            <p class="muted">Grounded answer from retrieved chunks</p>
+          </div>
+
+          <form id="ask-form" class="ask-form" novalidate>
+            <label for="ask-query-input">Question</label>
+            <div class="ask-controls">
+              <input id="ask-query-input" type="text" value="{{ ask_query }}" placeholder="Ask from retrieved context" autocomplete="off" required>
+              <button id="ask-submit" type="submit" class="primary-button">Ask</button>
+            </div>
+          </form>
+
+          <div id="ask-loading" class="skeleton-grid" hidden>
+            <article class="skeleton-card"></article>
+            <article class="skeleton-card"></article>
+          </div>
+
+          <div id="ask-error" class="state-card error" hidden></div>
+          <div id="ask-empty" class="state-card" hidden>Submit a question to generate a grounded answer.</div>
+
+          <div id="ask-results" class="ask-layout" hidden>
+            <article class="card">
+              <h3>Answer</h3>
+              <p id="ask-answer" class="answer"></p>
+            </article>
+
+            <article class="card">
+              <h3>Citations</h3>
+              <ul id="ask-citations" class="list"></ul>
+            </article>
+
+            <article class="card">
+              <h3>Recommended Experts</h3>
+              <ul id="ask-experts" class="list"></ul>
+            </article>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <noscript>
+    <p class="noscript">This demo UI requires JavaScript to fetch API data and render graph interactions.</p>
+  </noscript>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Login</title>
+  <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
+</head>
+<body>
+  <main class="page narrow">
+    <section class="panel">
+      <h1>Demo Login</h1>
+      <p class="muted">Select a demo role. This is stored in session and used as default API clearance.</p>
+
+      {% if error %}
+        <p class="error-inline">{{ error }}</p>
+      {% endif %}
+
+      <form method="post" class="query-form one-col">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <label>
+          Display name (optional)
+          <input type="text" name="name" value="{{ current_name }}" placeholder="demo-user">
+        </label>
+
+        <label>
+          Role / Default clearance
+          <select name="role">
+            {% for option in role_options %}
+              <option value="{{ option }}" {% if current_role == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <button type="submit">Save Session Role</button>
+      </form>
+
+      <p class="muted">
+        Dev note: you can still override clearance with query params on API calls.
+      </p>
+      <a class="back-link" href="{{ next }}">← Back</a>
+    </section>
+  </main>
+</body>
+</html>

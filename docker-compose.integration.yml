@@ -1,0 +1,12 @@
+services:
+  web:
+    ports: []
+
+  worker:
+    ports: []
+
+  postgres:
+    ports: []
+
+  neo4j:
+    ports: []

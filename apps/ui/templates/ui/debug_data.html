@@ -1,0 +1,115 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Integration Debug</title>
+  <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <a class="back-link" href="/">← Back to demo</a>
+      <h1>Data Integration Debug</h1>
+      <p class="muted">Staff-only diagnostics for Postgres, embeddings, search, and Neo4j integration.</p>
+      <p>
+        Pipeline status:
+        <span class="badge {% if snapshot.status == 'healthy' %}status-ok{% else %}status-warn{% endif %}">
+          {{ snapshot.status|upper }}
+        </span>
+      </p>
+    </header>
+
+    <section class="panel">
+      <h2>Postgres Counts</h2>
+      <div class="cards">
+        <article class="card"><strong>Papers</strong><p>{{ snapshot.counts.papers }}</p></article>
+        <article class="card"><strong>Authors</strong><p>{{ snapshot.counts.authors }}</p></article>
+        <article class="card"><strong>Topics</strong><p>{{ snapshot.counts.topics }}</p></article>
+        <article class="card"><strong>Authorships</strong><p>{{ snapshot.counts.authorships }}</p></article>
+        <article class="card"><strong>PaperTopics</strong><p>{{ snapshot.counts.paper_topics }}</p></article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Embeddings</h2>
+      <div class="cards">
+        <article class="card"><strong>Total chunks</strong><p>{{ snapshot.embedding_stats.total_chunks }}</p></article>
+        <article class="card"><strong>Non-null vectors</strong><p>{{ snapshot.embedding_stats.non_null_vectors }}</p></article>
+        <article class="card"><strong>Avg chunks / paper</strong><p>{{ snapshot.embedding_stats.avg_chunks_per_paper }}</p></article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Neo4j Graph</h2>
+      {% if snapshot.neo4j_error %}
+        <div class="state-card error">{{ snapshot.neo4j_error }}</div>
+      {% else %}
+        <div class="cards">
+          <article class="card"><strong>Paper nodes</strong><p>{{ snapshot.neo4j_stats.papers }}</p></article>
+          <article class="card"><strong>Author nodes</strong><p>{{ snapshot.neo4j_stats.authors }}</p></article>
+          <article class="card"><strong>Topic nodes</strong><p>{{ snapshot.neo4j_stats.topics }}</p></article>
+          <article class="card"><strong>WROTE rels</strong><p>{{ snapshot.neo4j_stats.wrote_rels }}</p></article>
+          <article class="card"><strong>HAS_TOPIC rels</strong><p>{{ snapshot.neo4j_stats.has_topic_rels }}</p></article>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Latest Pipeline Runs</h2>
+      <ul class="list">
+        <li>
+          Last ingestion run:
+          {% if snapshot.last_ingestion_run_at %}
+            {{ snapshot.last_ingestion_run_at|date:"Y-m-d H:i:s T" }}
+          {% else %}
+            n/a
+          {% endif %}
+        </li>
+        <li>
+          Last embed run:
+          {% if snapshot.last_embed_run_at %}
+            {{ snapshot.last_embed_run_at|date:"Y-m-d H:i:s T" }}
+          {% else %}
+            n/a
+          {% endif %}
+        </li>
+        <li>
+          Last graph sync:
+          {% if snapshot.last_graph_sync_at %}
+            {{ snapshot.last_graph_sync_at|date:"Y-m-d H:i:s T" }}
+          {% else %}
+            n/a
+          {% endif %}
+        </li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Run verification</h2>
+      <form method="post" class="query-form one-col">
+        {% csrf_token %}
+        <label>
+          Optional sample query override
+          <input type="text" name="query" value="{{ sample_query }}" placeholder="e.g. graph retrieval">
+        </label>
+        <button type="submit" class="primary-button">Run verify_data_pipeline</button>
+      </form>
+
+      {% if verification_passed is not None %}
+        <p>
+          Result:
+          <span class="badge {% if verification_passed %}status-ok{% else %}status-warn{% endif %}">
+            {% if verification_passed %}PASS{% else %}FAIL{% endif %}
+          </span>
+        </p>
+      {% endif %}
+
+      {% if verification_output %}
+        <pre class="debug-output">{{ verification_output }}</pre>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

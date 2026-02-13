@@ -1,0 +1,83 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ author.name }} - Expert Profile</title>
+  <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-top">
+        <div class="session-meta">
+          <span>Role: <strong>{{ session_role }}</strong></span>
+          {% if session_name %}
+            <span>User: <strong>{{ session_name }}</strong></span>
+          {% endif %}
+        </div>
+        <div class="session-actions">
+          <a class="button-link" href="{% url 'demo_login' %}?next={{ request.get_full_path|urlencode }}">Demo login</a>
+          <form method="post" action="{% url 'demo_logout' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="ghost-button">Logout</button>
+          </form>
+        </div>
+      </div>
+      <a class="back-link" href="/?tab=experts&query={{ query|urlencode }}&clearance={{ clearance }}">← Back to demo</a>
+      <h1>{{ author.name }}</h1>
+      <p>{{ author.institution_name }}</p>
+      <p class="muted">Clearance: {{ clearance }}</p>
+      <p class="muted">Centrality score: {{ author.centrality_score|default:"n/a" }}</p>
+    </header>
+
+    <section class="panel">
+      <h2>Top Topics</h2>
+      {% if top_topics %}
+        <ul class="list">
+          {% for topic in top_topics %}
+            <li>{{ topic }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No topics available for the selected clearance.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Top Papers</h2>
+      {% if top_papers %}
+        <div class="cards">
+          {% for paper in top_papers %}
+            <article class="card">
+              <h3>{{ paper.title }}</h3>
+              <p><strong>Published:</strong> {{ paper.published_date|default:"n/a" }}</p>
+              <p><strong>Security:</strong> {{ paper.security_level }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No papers available for the selected clearance.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Collaborators</h2>
+      {% if collaborators %}
+        <ul class="list">
+          {% for collaborator in collaborators %}
+            <li>
+              <a href="{% url 'ui_expert_profile' collaborator.id %}?clearance={{ clearance }}&query={{ query|urlencode }}">{{ collaborator.name }}</a>
+              <span class="muted">{{ collaborator.institution }} · {{ collaborator.paper_count }} shared paper(s)</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No collaborators found for the selected clearance.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
