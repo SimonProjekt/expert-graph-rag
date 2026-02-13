@@ -1,30 +1,39 @@
-"""OpenAlex ingestion pipeline.
-
-Includes retry, rate limiting, and deterministic security classification.
-"""
+"""OpenAlex ingestion and live read-through services."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-import time
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
+from django.conf import settings
 from django.db import DatabaseError, IntegrityError, transaction
+from django.utils import timezone
 
 from apps.documents.models import (
     Author,
     Authorship,
+    Embedding,
+    IngestionRun,
+    IngestionStatus,
     Paper,
     PaperTopic,
     SecurityLevel,
     Topic,
+)
+from apps.documents.openalex_client import (
+    OpenAlexClient,
+    OpenAlexClientError,
+    OpenAlexWorkRecord,
+)
+from apps.documents.services import (
+    ChunkingError,
+    EmbeddingError,
+    EmbeddingService,
+    PaperChunkingService,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,209 +62,48 @@ class OpenAlexTopicInput:
     name: str
 
 
-class RateLimiter:
-    """Simple token-less limiter that enforces minimum delay between outbound requests."""
-
-    def __init__(self, requests_per_second: int) -> None:
-        if requests_per_second <= 0:
-            raise ValueError("requests_per_second must be greater than 0")
-        self._min_interval_seconds = 1.0 / float(requests_per_second)
-        self._last_request_at: float | None = None
-
-    def wait(self) -> None:
-        now = time.monotonic()
-        if self._last_request_at is None:
-            self._last_request_at = now
-            return
-
-        elapsed = now - self._last_request_at
-        sleep_for = self._min_interval_seconds - elapsed
-        if sleep_for > 0:
-            _log_event("openalex.rate_limit_sleep", sleep_seconds=round(sleep_for, 4))
-            time.sleep(sleep_for)
-        self._last_request_at = time.monotonic()
+@dataclass(frozen=True)
+class OpenAlexIngestionSummary:
+    counts: dict[str, int]
+    paper_ids: list[int]
+    author_ids: list[int]
+    topic_ids: list[int]
 
 
-class OpenAlexClient:
-    """HTTP client for paginated OpenAlex work retrieval."""
+@dataclass(frozen=True)
+class _WorkUpsertResult:
+    counters: dict[str, int]
+    paper_id: int
+    author_ids: list[int]
+    topic_ids: list[int]
 
-    def __init__(
-        self,
-        *,
-        base_url: str,
-        timeout_seconds: int,
-        max_retries: int,
-        backoff_seconds: int,
-        rate_limit_rps: int,
-        page_size: int,
-    ) -> None:
-        if timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be greater than 0")
-        if max_retries < 0:
-            raise ValueError("max_retries must be 0 or greater")
-        if backoff_seconds < 0:
-            raise ValueError("backoff_seconds must be 0 or greater")
-        if page_size <= 0:
-            raise ValueError("page_size must be greater than 0")
 
-        self._base_url = base_url.rstrip("/")
-        self._timeout_seconds = timeout_seconds
-        self._max_retries = max_retries
-        self._backoff_seconds = float(backoff_seconds)
-        self._page_size = page_size
-        self._rate_limiter = RateLimiter(rate_limit_rps)
+@dataclass(frozen=True)
+class OpenAlexReadThroughResult:
+    enabled: bool
+    attempted: bool
+    reason: str
+    works_processed: int = 0
+    papers_touched: int = 0
+    chunks_embedded: int = 0
+    duration_ms: int = 0
+    error: str | None = None
 
-    def iter_works(
-        self,
-        *,
-        query: str,
-        limit: int,
-        since: date | None,
-    ) -> list[dict[str, Any]]:
-        if limit <= 0:
-            return []
+    @property
+    def should_rerun_search(self) -> bool:
+        return self.attempted and self.papers_touched > 0
 
-        works: list[dict[str, Any]] = []
-        cursor = "*"
-
-        while len(works) < limit:
-            per_page = min(self._page_size, limit - len(works))
-            url = self._build_works_url(
-                query=query,
-                per_page=per_page,
-                since=since,
-                cursor=cursor,
-            )
-            payload = self._request_json(url)
-
-            results = payload.get("results")
-            if not isinstance(results, list):
-                raise OpenAlexIngestionError(
-                    "OpenAlex payload is missing a list 'results' field."
-                )
-
-            for item in results:
-                if not isinstance(item, dict):
-                    continue
-                works.append(item)
-                if len(works) >= limit:
-                    break
-
-            meta = payload.get("meta")
-            next_cursor = meta.get("next_cursor") if isinstance(meta, dict) else None
-            _log_event(
-                "openalex.page_processed",
-                fetched_this_page=len(results),
-                fetched_total=len(works),
-                has_next_cursor=bool(next_cursor),
-            )
-            if not next_cursor or not results:
-                break
-            cursor = str(next_cursor)
-
-        return works
-
-    def _build_works_url(
-        self,
-        *,
-        query: str,
-        per_page: int,
-        since: date | None,
-        cursor: str,
-    ) -> str:
-        filters: list[str] = []
-        if since is not None:
-            filters.append(f"from_publication_date:{since.isoformat()}")
-
-        params = {
-            "search": query,
-            "per-page": str(per_page),
-            "cursor": cursor,
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "enabled": self.enabled,
+            "attempted": self.attempted,
+            "reason": self.reason,
+            "works_processed": self.works_processed,
+            "papers_touched": self.papers_touched,
+            "chunks_embedded": self.chunks_embedded,
+            "duration_ms": self.duration_ms,
+            "error": self.error,
         }
-        if filters:
-            params["filter"] = ",".join(filters)
-
-        return f"{self._base_url}/works?{urlencode(params)}"
-
-    def _request_json(self, url: str) -> dict[str, Any]:
-        request = Request(
-            url=url,
-            headers={
-                "Accept": "application/json",
-                "User-Agent": "expert-graph-rag/0.1",
-            },
-        )
-
-        for attempt in range(self._max_retries + 1):
-            self._rate_limiter.wait()
-            try:
-                started = time.monotonic()
-                with urlopen(request, timeout=self._timeout_seconds) as response:
-                    body = response.read().decode("utf-8")
-                elapsed_ms = int((time.monotonic() - started) * 1000)
-                payload = json.loads(body)
-                if not isinstance(payload, dict):
-                    raise OpenAlexIngestionError("OpenAlex returned a non-object JSON response.")
-
-                _log_event(
-                    "openalex.http_success",
-                    url=url,
-                    attempt=attempt + 1,
-                    elapsed_ms=elapsed_ms,
-                )
-                return payload
-            except HTTPError as exc:
-                if self._should_retry_http(exc.code, attempt=attempt):
-                    sleep_for = self._calculate_backoff(
-                        attempt=attempt,
-                        retry_after_header=exc.headers.get("Retry-After"),
-                    )
-                    _log_event(
-                        "openalex.http_retry",
-                        url=url,
-                        attempt=attempt + 1,
-                        status_code=exc.code,
-                        sleep_seconds=sleep_for,
-                    )
-                    time.sleep(sleep_for)
-                    continue
-                raise OpenAlexIngestionError(
-                    f"OpenAlex HTTP error {exc.code}: {exc.reason}"
-                ) from exc
-            except (URLError, TimeoutError, json.JSONDecodeError) as exc:
-                if attempt < self._max_retries:
-                    sleep_for = self._calculate_backoff(attempt=attempt, retry_after_header=None)
-                    _log_event(
-                        "openalex.http_retry",
-                        url=url,
-                        attempt=attempt + 1,
-                        error=str(exc),
-                        sleep_seconds=sleep_for,
-                    )
-                    time.sleep(sleep_for)
-                    continue
-                raise OpenAlexIngestionError(
-                    f"OpenAlex request failed after retries: {exc}"
-                ) from exc
-
-        raise OpenAlexIngestionError("OpenAlex request failed unexpectedly after retries.")
-
-    def _should_retry_http(self, status_code: int, *, attempt: int) -> bool:
-        retryable = {429, 500, 502, 503, 504}
-        return attempt < self._max_retries and status_code in retryable
-
-    def _calculate_backoff(self, *, attempt: int, retry_after_header: str | None) -> float:
-        if retry_after_header:
-            try:
-                retry_after_seconds = float(retry_after_header)
-                if retry_after_seconds >= 0:
-                    return min(retry_after_seconds, 60.0)
-            except ValueError:
-                pass
-
-        if self._backoff_seconds == 0:
-            return 0.0
-        return min(self._backoff_seconds * float(2**attempt), 60.0)
 
 
 class OpenAlexIngestionService:
@@ -269,16 +117,37 @@ class OpenAlexIngestionService:
     ) -> None:
         if len(security_level_ratios) != 3:
             raise ValueError(
-                "security_level_ratios must include PUBLIC, INTERNAL, "
-                "CONFIDENTIAL percentages"
+                "security_level_ratios must include PUBLIC, INTERNAL, CONFIDENTIAL percentages."
             )
         if sum(security_level_ratios) != 100:
-            raise ValueError("security_level_ratios must sum to 100")
+            raise ValueError("security_level_ratios must sum to 100.")
 
         self._client = client
         self._public_ratio, self._internal_ratio, _ = security_level_ratios
 
-    def ingest(self, *, query: str, limit: int, since: date | None) -> dict[str, int]:
+    def ingest(
+        self,
+        *,
+        query: str,
+        limit: int,
+        since: date | None,
+        filter_expression: str | None = None,
+    ) -> dict[str, int]:
+        return self.ingest_with_details(
+            query=query,
+            limit=limit,
+            since=since,
+            filter_expression=filter_expression,
+        ).counts
+
+    def ingest_with_details(
+        self,
+        *,
+        query: str,
+        limit: int,
+        since: date | None,
+        filter_expression: str | None = None,
+    ) -> OpenAlexIngestionSummary:
         counters: dict[str, int] = {
             "works_processed": 0,
             "works_skipped": 0,
@@ -292,11 +161,25 @@ class OpenAlexIngestionService:
             "paper_topic_links": 0,
         }
 
-        works = self._client.iter_works(query=query, limit=limit, since=since)
-        for work in works:
+        paper_ids: set[int] = set()
+        author_ids: set[int] = set()
+        topic_ids: set[int] = set()
+
+        try:
+            works = self._client.iter_works(
+                query=query,
+                limit=limit,
+                since=since,
+                filter_expression=filter_expression,
+            )
+        except OpenAlexClientError as exc:
+            raise OpenAlexIngestionError(str(exc)) from exc
+
+        for raw_work in works:
             try:
-                result = self._upsert_work(work)
-            except OpenAlexIngestionError as exc:
+                normalized_work = self._client.normalize_work(raw_work)
+                result = self._upsert_work(normalized_work)
+            except (OpenAlexIngestionError, OpenAlexClientError) as exc:
                 counters["works_skipped"] += 1
                 _log_event("openalex.work_skipped", reason=str(exc))
                 continue
@@ -306,29 +189,63 @@ class OpenAlexIngestionService:
                 ) from exc
 
             counters["works_processed"] += 1
-            for key, value in result.items():
+            for key, value in result.counters.items():
                 counters[key] += value
+            paper_ids.add(result.paper_id)
+            author_ids.update(result.author_ids)
+            topic_ids.update(result.topic_ids)
 
         _log_event(
             "openalex.ingest_complete",
             query=query,
             since=since,
             limit=limit,
+            filter_expression=filter_expression,
             counters=counters,
         )
+        return OpenAlexIngestionSummary(
+            counts=counters,
+            paper_ids=sorted(paper_ids),
+            author_ids=sorted(author_ids),
+            topic_ids=sorted(topic_ids),
+        )
+
+    def upsert_authors(self, *, raw_authors: list[dict[str, Any]], limit: int) -> dict[str, int]:
+        if limit <= 0:
+            return {"authors_created": 0, "authors_updated": 0, "authors_processed": 0}
+
+        counters = {"authors_created": 0, "authors_updated": 0, "authors_processed": 0}
+        seen_external_ids: set[str] = set()
+
+        for raw_author in raw_authors:
+            if counters["authors_processed"] >= limit:
+                break
+
+            try:
+                author_record = self._client.normalize_author(raw_author)
+            except OpenAlexClientError:
+                continue
+
+            if author_record.external_id in seen_external_ids:
+                continue
+            seen_external_ids.add(author_record.external_id)
+
+            author_row, created = Author.objects.update_or_create(
+                external_id=author_record.external_id,
+                defaults={
+                    "name": author_record.name,
+                    "institution_name": author_record.institution_name,
+                },
+            )
+            counters["authors_created" if created else "authors_updated"] += 1
+            counters["authors_processed"] += 1
+
+            _ = author_row.id
+
         return counters
 
-    def _upsert_work(self, work: dict[str, Any]) -> dict[str, int]:
-        external_id = self._as_non_empty_string(work.get("id"))
-        if external_id is None:
-            raise OpenAlexIngestionError("Work payload missing 'id'.")
-
-        title = self._as_non_empty_string(work.get("display_name")) or "Untitled"
-        abstract = self._decode_abstract(work.get("abstract_inverted_index"))
-        published_date = self._parse_date(work.get("publication_date"))
-        doi = self._normalize_doi(work.get("doi"))
-        security_level = self._assign_security_level(external_id)
-
+    def _upsert_work(self, work: OpenAlexWorkRecord) -> _WorkUpsertResult:
+        security_level = self._assign_security_level(work.external_id)
         author_inputs = self._extract_authors(work)
         topic_inputs = self._extract_topics(work)
 
@@ -345,16 +262,16 @@ class OpenAlexIngestionService:
 
         with transaction.atomic():
             paper, paper_created = self._upsert_paper(
-                external_id=external_id,
-                title=title,
-                abstract=abstract,
-                published_date=published_date,
-                doi=doi,
+                external_id=work.external_id,
+                title=work.title,
+                abstract=work.abstract,
+                published_date=work.published_date,
+                doi=work.doi,
                 security_level=security_level,
             )
             counters["papers_created" if paper_created else "papers_updated"] += 1
 
-            authorship_links, author_counter_delta = self._replace_authorships(
+            authorship_links, author_counter_delta, author_ids = self._replace_authorships(
                 paper=paper,
                 authors=author_inputs,
             )
@@ -362,7 +279,7 @@ class OpenAlexIngestionService:
             counters["authors_created"] += author_counter_delta["authors_created"]
             counters["authors_updated"] += author_counter_delta["authors_updated"]
 
-            paper_topic_links, topic_counter_delta = self._replace_paper_topics(
+            paper_topic_links, topic_counter_delta, topic_ids = self._replace_paper_topics(
                 paper=paper,
                 topics=topic_inputs,
             )
@@ -370,7 +287,12 @@ class OpenAlexIngestionService:
             counters["topics_created"] += topic_counter_delta["topics_created"]
             counters["topics_updated"] += topic_counter_delta["topics_updated"]
 
-        return counters
+        return _WorkUpsertResult(
+            counters=counters,
+            paper_id=paper.id,
+            author_ids=author_ids,
+            topic_ids=topic_ids,
+        )
 
     def _upsert_paper(
         self,
@@ -432,11 +354,12 @@ class OpenAlexIngestionService:
         *,
         paper: Paper,
         authors: list[OpenAlexAuthorInput],
-    ) -> tuple[int, dict[str, int]]:
+    ) -> tuple[int, dict[str, int], list[int]]:
         Authorship.objects.filter(paper=paper).delete()
 
         counters = {"authors_created": 0, "authors_updated": 0}
         authorships: list[Authorship] = []
+        author_ids: list[int] = []
         seen_external_ids: set[str] = set()
 
         for author in authors:
@@ -452,6 +375,7 @@ class OpenAlexIngestionService:
                 },
             )
             counters["authors_created" if created else "authors_updated"] += 1
+            author_ids.append(author_row.id)
             authorships.append(
                 Authorship(
                     author=author_row,
@@ -461,18 +385,19 @@ class OpenAlexIngestionService:
             )
 
         Authorship.objects.bulk_create(authorships)
-        return len(authorships), counters
+        return len(authorships), counters, author_ids
 
     def _replace_paper_topics(
         self,
         *,
         paper: Paper,
         topics: list[OpenAlexTopicInput],
-    ) -> tuple[int, dict[str, int]]:
+    ) -> tuple[int, dict[str, int], list[int]]:
         PaperTopic.objects.filter(paper=paper).delete()
 
         counters = {"topics_created": 0, "topics_updated": 0}
         paper_topics: list[PaperTopic] = []
+        topic_ids: list[int] = []
         seen_external_ids: set[str] = set()
 
         for topic in topics:
@@ -485,10 +410,11 @@ class OpenAlexIngestionService:
                 defaults={"name": topic.name},
             )
             counters["topics_created" if created else "topics_updated"] += 1
+            topic_ids.append(topic_row.id)
             paper_topics.append(PaperTopic(paper=paper, topic=topic_row))
 
         PaperTopic.objects.bulk_create(paper_topics)
-        return len(paper_topics), counters
+        return len(paper_topics), counters, topic_ids
 
     def _assign_security_level(self, external_id: str) -> str:
         bucket = int(hashlib.sha1(external_id.encode("utf-8")).hexdigest(), 16) % 100
@@ -502,123 +428,253 @@ class OpenAlexIngestionService:
         return SecurityLevel.CONFIDENTIAL
 
     @staticmethod
-    def _extract_authors(work: dict[str, Any]) -> list[OpenAlexAuthorInput]:
-        raw_authorships = work.get("authorships")
-        if not isinstance(raw_authorships, list):
-            return []
-
-        authors: list[OpenAlexAuthorInput] = []
-        for index, authorship in enumerate(raw_authorships, start=1):
-            if not isinstance(authorship, dict):
-                continue
-
-            author_payload = authorship.get("author")
-            if not isinstance(author_payload, dict):
-                continue
-
-            external_id = OpenAlexIngestionService._as_non_empty_string(
-                author_payload.get("id")
-            )
-            if external_id is None:
-                continue
-
-            name = (
-                OpenAlexIngestionService._as_non_empty_string(
-                    author_payload.get("display_name")
-                )
-                or "Unknown"
-            )
-
-            institution_name = "unknown"
-            institutions = authorship.get("institutions")
-            if isinstance(institutions, list) and institutions:
-                first_institution = institutions[0]
-                if isinstance(first_institution, dict):
-                    institution_name = (
-                        OpenAlexIngestionService._as_non_empty_string(
-                            first_institution.get("display_name")
-                        )
-                        or "unknown"
-                    )
-
-            authors.append(
+    def _extract_authors(work: OpenAlexWorkRecord) -> list[OpenAlexAuthorInput]:
+        result: list[OpenAlexAuthorInput] = []
+        for index, author in enumerate(work.authors, start=1):
+            result.append(
                 OpenAlexAuthorInput(
-                    external_id=external_id,
-                    name=name,
-                    institution_name=institution_name,
-                    author_order=index,
+                    external_id=author.external_id,
+                    name=author.name,
+                    institution_name=author.institution_name,
+                    author_order=author.author_order or index,
                 )
             )
-
-        return authors
-
-    @staticmethod
-    def _extract_topics(work: dict[str, Any]) -> list[OpenAlexTopicInput]:
-        raw_concepts = work.get("concepts")
-        if not isinstance(raw_concepts, list):
-            return []
-
-        topics: list[OpenAlexTopicInput] = []
-        for concept in raw_concepts:
-            if not isinstance(concept, dict):
-                continue
-
-            external_id = OpenAlexIngestionService._as_non_empty_string(concept.get("id"))
-            name = OpenAlexIngestionService._as_non_empty_string(concept.get("display_name"))
-            if external_id is None or name is None:
-                continue
-
-            topics.append(OpenAlexTopicInput(external_id=external_id, name=name))
-
-        return topics[:20]
+        return result
 
     @staticmethod
-    def _decode_abstract(raw_index: Any) -> str:
-        if not isinstance(raw_index, dict):
-            return ""
+    def _extract_topics(work: OpenAlexWorkRecord) -> list[OpenAlexTopicInput]:
+        return [
+            OpenAlexTopicInput(external_id=concept.external_id, name=concept.name)
+            for concept in work.concepts
+        ]
 
-        token_by_position: dict[int, str] = {}
-        for token, positions in raw_index.items():
-            if not isinstance(token, str) or not isinstance(positions, list):
-                continue
 
-            for position in positions:
-                if (
-                    isinstance(position, int)
-                    and 0 <= position < 50000
-                    and position not in token_by_position
-                ):
-                    token_by_position[position] = token
+class OpenAlexReadThroughService:
+    """Fetches live OpenAlex data when local search results are sparse."""
 
-        if not token_by_position:
-            return ""
+    def __init__(
+        self,
+        *,
+        enabled: bool | None = None,
+        min_results: int | None = None,
+        fetch_limit: int | None = None,
+        cooldown_seconds: int | None = None,
+    ) -> None:
+        self._enabled = (
+            bool(enabled)
+            if enabled is not None
+            else bool(getattr(settings, "OPENALEX_LIVE_FETCH", True))
+        )
+        self._min_results = (
+            int(min_results)
+            if min_results is not None
+            else int(getattr(settings, "OPENALEX_LIVE_MIN_RESULTS", 10))
+        )
+        self._fetch_limit = (
+            int(fetch_limit)
+            if fetch_limit is not None
+            else int(getattr(settings, "OPENALEX_LIVE_FETCH_LIMIT", 40))
+        )
+        self._cooldown_seconds = (
+            int(cooldown_seconds)
+            if cooldown_seconds is not None
+            else int(getattr(settings, "OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS", 900))
+        )
 
-        ordered_tokens = [token_by_position[position] for position in sorted(token_by_position)]
-        return " ".join(ordered_tokens)
+        if self._min_results <= 0:
+            raise ValueError("min_results must be greater than zero.")
+        if self._fetch_limit <= 0:
+            raise ValueError("fetch_limit must be greater than zero.")
+        if self._cooldown_seconds < 0:
+            raise ValueError("cooldown_seconds must be zero or greater.")
 
-    @staticmethod
-    def _as_non_empty_string(value: Any) -> str | None:
-        if not isinstance(value, str):
-            return None
-        normalized = value.strip()
-        return normalized if normalized else None
+    def fetch_if_needed(
+        self,
+        *,
+        query: str,
+        current_result_count: int,
+        page: int,
+    ) -> OpenAlexReadThroughResult:
+        query_text = query.strip()
+        if not self._enabled:
+            return OpenAlexReadThroughResult(
+                enabled=False,
+                attempted=False,
+                reason="disabled",
+            )
+        if not query_text:
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=False,
+                reason="empty_query",
+            )
+        if page != 1:
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=False,
+                reason="page_not_supported",
+            )
+        if current_result_count >= self._min_results:
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=False,
+                reason="sufficient_local_results",
+            )
+        if not settings.OPENALEX_API_KEY:
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=False,
+                reason="missing_api_key",
+            )
+        if self._is_in_cooldown(query_text):
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=False,
+                reason="cooldown",
+            )
 
-    @staticmethod
-    def _parse_date(raw_value: Any) -> date | None:
-        value = OpenAlexIngestionService._as_non_empty_string(raw_value)
-        if value is None:
-            return None
+        run_query = self._run_query(query_text)
+        run = IngestionRun.objects.create(
+            query=run_query,
+            status=IngestionStatus.RUNNING,
+            counts={
+                "source": "live_read_through",
+                "requested_limit": self._fetch_limit,
+                "result_count_before": current_result_count,
+            },
+        )
+        started = timezone.now()
+
         try:
-            return date.fromisoformat(value)
-        except ValueError:
-            return None
+            client = OpenAlexClient(
+                base_url=settings.OPENALEX_BASE_URL,
+                api_key=settings.OPENALEX_API_KEY,
+                mailto=settings.OPENALEX_MAILTO,
+                timeout_seconds=settings.OPENALEX_HTTP_TIMEOUT_SECONDS,
+                max_retries=settings.OPENALEX_MAX_RETRIES,
+                backoff_seconds=settings.OPENALEX_BACKOFF_SECONDS,
+                rate_limit_rps=settings.OPENALEX_RATE_LIMIT_RPS,
+                page_size=settings.OPENALEX_PAGE_SIZE,
+            )
+            service = OpenAlexIngestionService(
+                client=client,
+                security_level_ratios=settings.OPENALEX_SECURITY_LEVEL_RATIOS,
+            )
+            summary = service.ingest_with_details(
+                query=query_text,
+                limit=self._fetch_limit,
+                since=None,
+            )
+
+            chunk_stats = PaperChunkingService().chunk_papers(summary.paper_ids)
+            chunks_embedded = self._embed_with_fallback(summary.paper_ids)
+
+            finished = timezone.now()
+            duration_ms = int((finished - started).total_seconds() * 1000)
+            counts = dict(summary.counts)
+            counts.update(
+                {
+                    "source": "live_read_through",
+                    "requested_limit": self._fetch_limit,
+                    "result_count_before": current_result_count,
+                    "papers_touched": len(summary.paper_ids),
+                    "authors_touched": len(summary.author_ids),
+                    "topics_touched": len(summary.topic_ids),
+                    "chunks_generated": chunk_stats["chunks_generated"],
+                    "chunks_embedded": chunks_embedded,
+                    "duration_ms": duration_ms,
+                }
+            )
+
+            run.status = IngestionStatus.SUCCESS
+            run.finished_at = finished
+            run.error_message = ""
+            run.counts = counts
+            run.save(update_fields=["status", "finished_at", "error_message", "counts"])
+
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=True,
+                reason="fetched",
+                works_processed=summary.counts["works_processed"],
+                papers_touched=len(summary.paper_ids),
+                chunks_embedded=chunks_embedded,
+                duration_ms=duration_ms,
+            )
+        except (
+            OpenAlexClientError,
+            OpenAlexIngestionError,
+            DatabaseError,
+            ChunkingError,
+            EmbeddingError,
+            ValueError,
+        ) as exc:
+            _log_event("openalex.live_fetch_failed", query=query_text, error=str(exc))
+            self._mark_failed(run=run, error_message=str(exc))
+            return OpenAlexReadThroughResult(
+                enabled=True,
+                attempted=True,
+                reason="failed",
+                error=str(exc),
+            )
+
+    def _embed_with_fallback(self, paper_ids: list[int]) -> int:
+        if not paper_ids:
+            return 0
+        try:
+            return EmbeddingService().embed_pending_chunks(
+                paper_ids=paper_ids,
+                batch_size=128,
+                backend_name=settings.EMBEDDING_BACKEND,
+            )
+        except EmbeddingError:
+            return self._deterministic_embed(paper_ids)
 
     @staticmethod
-    def _normalize_doi(raw_value: Any) -> str | None:
-        value = OpenAlexIngestionService._as_non_empty_string(raw_value)
-        if value is None:
-            return None
+    def _deterministic_embed(paper_ids: list[int]) -> int:
+        rows = list(
+            Embedding.objects.filter(paper_id__in=paper_ids, embedding__isnull=True).only(
+                "id",
+                "text_chunk",
+            )
+        )
+        if not rows:
+            return 0
 
-        normalized = value.removeprefix("https://doi.org/").removeprefix("http://doi.org/")
-        normalized = normalized.removeprefix("http://dx.doi.org/").strip()
-        return normalized or None
+        for row in rows:
+            row.embedding = OpenAlexReadThroughService._hash_vector(row.text_chunk)
+        Embedding.objects.bulk_update(rows, ["embedding"])
+        return len(rows)
+
+    @staticmethod
+    def _hash_vector(text: str) -> list[float]:
+        digest = hashlib.sha256(text.encode("utf-8")).digest()
+        values: list[float] = []
+        for idx in range(settings.EMBEDDING_DIM):
+            left = digest[(idx * 2) % len(digest)]
+            right = digest[(idx * 2 + 1) % len(digest)]
+            packed = (left << 8) | right
+            values.append(packed / 65535.0)
+        return values
+
+    def _is_in_cooldown(self, query: str) -> bool:
+        if self._cooldown_seconds <= 0:
+            return False
+        window_start = timezone.now() - timedelta(seconds=self._cooldown_seconds)
+        return IngestionRun.objects.filter(
+            query=self._run_query(query),
+            status=IngestionStatus.SUCCESS,
+            finished_at__gte=window_start,
+        ).exists()
+
+    @staticmethod
+    def _run_query(query: str) -> str:
+        return f"live_fetch:{query}"
+
+    @staticmethod
+    def _mark_failed(*, run: IngestionRun, error_message: str) -> None:
+        run.status = IngestionStatus.FAILED
+        run.finished_at = timezone.now()
+        run.error_message = error_message[:5000]
+        run.save(update_fields=["status", "finished_at", "error_message"])
+

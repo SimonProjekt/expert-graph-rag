@@ -8,11 +8,10 @@ from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
-from django.shortcuts import redirect
-from django.views.decorators.http import require_GET
-from django.views.decorators.http import require_http_methods
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_GET, require_http_methods
 
 from apps.common.demo_auth import (
     clear_session_identity,
@@ -81,6 +80,19 @@ def home(request):
     sort_order = (request.GET.get("sort") or "relevance").strip().lower()
     if sort_order not in {"relevance", "recency"}:
         sort_order = "relevance"
+    allowed_levels = _allowed_levels(clearance)
+
+    recent_works = list(
+        Paper.objects.filter(security_level__in=allowed_levels)
+        .order_by("-published_date", "-id")
+        .values("title", "published_date")[:6]
+    )
+    top_experts = list(
+        Author.objects.filter(authorships__paper__security_level__in=allowed_levels)
+        .annotate(paper_count=Count("authorships__paper", distinct=True))
+        .order_by("-paper_count", "name")
+        .values("id", "name", "institution_name", "paper_count")[:6]
+    )
 
     context: dict[str, Any] = {
         "query": query,
@@ -92,7 +104,12 @@ def home(request):
         "clearance_options": list(SecurityLevel.values),
         "active_tab": active_tab,
         "llm_enabled": bool(settings.OPENAI_API_KEY),
+        "openalex_live_fetch_enabled": bool(
+            settings.OPENALEX_LIVE_FETCH and bool(settings.OPENALEX_API_KEY)
+        ),
         "example_queries": list(DEFAULT_EXAMPLE_QUERIES),
+        "recent_works": recent_works,
+        "top_experts": top_experts,
         "api_search_url": "/api/search",
         "api_experts_url": "/api/experts",
         "api_ask_url": "/api/ask",
@@ -106,6 +123,9 @@ def home(request):
             "apiExpertsUrl": "/api/experts",
             "apiAskUrl": "/api/ask",
             "expertProfileBasePath": "/experts/",
+            "openAlexLiveFetchEnabled": bool(
+                settings.OPENALEX_LIVE_FETCH and bool(settings.OPENALEX_API_KEY)
+            ),
         },
     }
     return render(request, "ui/home.html", context)

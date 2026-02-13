@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Callable
 
 from django.conf import settings
 from django.db import DatabaseError
@@ -204,6 +204,10 @@ class GraphSyncService:
             "CREATE CONSTRAINT topic_external_id IF NOT EXISTS "
             "FOR (t:Topic) REQUIRE t.external_id IS UNIQUE"
         )
+        tx.run(
+            "CREATE CONSTRAINT institution_name IF NOT EXISTS "
+            "FOR (i:Institution) REQUIRE i.name IS UNIQUE"
+        )
 
     @staticmethod
     def _upsert_paper_graph(
@@ -235,6 +239,10 @@ class GraphSyncService:
             DELETE old_t
 
             WITH p
+            OPTIONAL MATCH (p)-[old_c:HAS_CONCEPT]->(:Topic)
+            DELETE old_c
+
+            WITH p
             FOREACH (author IN $authors |
                 MERGE (a:Author {external_id: author.external_id})
                 SET a.name = author.name,
@@ -242,6 +250,15 @@ class GraphSyncService:
                     a.updated_at = datetime()
                 MERGE (a)-[w:WROTE]->(p)
                 SET w.author_order = author.author_order
+                FOREACH (_ IN CASE
+                    WHEN author.institution_name IS NULL OR author.institution_name = ''
+                    THEN []
+                    ELSE [1]
+                END |
+                    MERGE (i:Institution {name: author.institution_name})
+                    SET i.updated_at = datetime()
+                    MERGE (a)-[:AFFILIATED_WITH]->(i)
+                )
             )
 
             WITH p
@@ -250,6 +267,7 @@ class GraphSyncService:
                 SET t.name = topic.name,
                     t.updated_at = datetime()
                 MERGE (p)-[:HAS_TOPIC]->(t)
+                MERGE (p)-[:HAS_CONCEPT]->(t)
             )
 
             WITH p

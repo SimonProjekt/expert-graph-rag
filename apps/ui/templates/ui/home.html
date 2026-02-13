@@ -31,6 +31,11 @@
         {% else %}
           <span class="badge status-warn">Demo Mode (LLM Disabled)</span>
         {% endif %}
+        {% if openalex_live_fetch_enabled %}
+          <span class="badge status-ok">OpenAlex Live Fetch: On</span>
+        {% else %}
+          <span class="badge badge-outline">OpenAlex Live Fetch: Off</span>
+        {% endif %}
         <span class="badge badge-outline" id="clearance-badge">Clearance: {{ clearance }}</span>
         <span class="badge badge-outline">Role: {{ session_role }}</span>
       </div>
@@ -124,6 +129,38 @@
         <section id="panel-empty" class="panel state-card">
           <h2>Start with a query</h2>
           <p>Use a sample query or type your own to load papers, experts, graph context, and grounded answers.</p>
+
+          <div class="cards onboarding-grid">
+            <article class="card">
+              <h3>Recent Works</h3>
+              <ul class="list compact-list">
+                {% for work in recent_works %}
+                  <li>
+                    <strong>{{ work.title }}</strong>
+                    <span class="muted">
+                      {% if work.published_date %}{{ work.published_date|date:"Y-m-d" }}{% else %}n/a{% endif %}
+                    </span>
+                  </li>
+                {% empty %}
+                  <li>No local works yet. Run <code>python manage.py seed_openalex</code>.</li>
+                {% endfor %}
+              </ul>
+            </article>
+
+            <article class="card">
+              <h3>Top Experts</h3>
+              <ul class="list compact-list">
+                {% for expert in top_experts %}
+                  <li>
+                    <a href="{% url 'ui_expert_profile' expert.id %}?clearance={{ clearance }}&query={{ query|urlencode }}">{{ expert.name }}</a>
+                    <span class="muted">{{ expert.institution_name }} · {{ expert.paper_count }} papers</span>
+                  </li>
+                {% empty %}
+                  <li>No experts yet. Seed data to populate expert cards.</li>
+                {% endfor %}
+              </ul>
+            </article>
+          </div>
         </section>
 
         <section id="panel-papers" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-papers" hidden>

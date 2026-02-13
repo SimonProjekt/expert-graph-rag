@@ -215,6 +215,8 @@ OPENAI_ANSWER_MODEL = get_env("OPENAI_ANSWER_MODEL", default="gpt-4o-mini")
 LOG_LEVEL = get_env("LOG_LEVEL", default="INFO")
 
 OPENALEX_BASE_URL = get_env("OPENALEX_BASE_URL", default="https://api.openalex.org")
+OPENALEX_API_KEY = get_env("OPENALEX_API_KEY", default="")
+OPENALEX_MAILTO = get_env("OPENALEX_MAILTO", default="")
 OPENALEX_PAGE_SIZE = get_int("OPENALEX_PAGE_SIZE", default=200)
 OPENALEX_HTTP_TIMEOUT_SECONDS = get_int("OPENALEX_HTTP_TIMEOUT_SECONDS", default=15)
 OPENALEX_MAX_RETRIES = get_int("OPENALEX_MAX_RETRIES", default=3)
@@ -223,6 +225,10 @@ OPENALEX_RATE_LIMIT_RPS = get_int("OPENALEX_RATE_LIMIT_RPS", default=5)
 OPENALEX_SECURITY_LEVEL_RATIOS = _parse_openalex_security_level_ratios(
     get_env("OPENALEX_SECURITY_LEVEL_RATIOS", default="70,20,10")
 )
+OPENALEX_LIVE_FETCH = get_bool("OPENALEX_LIVE_FETCH", default=True)
+OPENALEX_LIVE_MIN_RESULTS = get_int("OPENALEX_LIVE_MIN_RESULTS", default=10)
+OPENALEX_LIVE_FETCH_LIMIT = get_int("OPENALEX_LIVE_FETCH_LIMIT", default=40)
+OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS = get_int("OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS", default=900)
 
 if OPENALEX_PAGE_SIZE <= 0:
     raise ImproperlyConfigured("OPENALEX_PAGE_SIZE must be greater than 0.")
@@ -234,6 +240,12 @@ if OPENALEX_BACKOFF_SECONDS < 0:
     raise ImproperlyConfigured("OPENALEX_BACKOFF_SECONDS must be 0 or greater.")
 if OPENALEX_RATE_LIMIT_RPS <= 0:
     raise ImproperlyConfigured("OPENALEX_RATE_LIMIT_RPS must be greater than 0.")
+if OPENALEX_LIVE_MIN_RESULTS <= 0:
+    raise ImproperlyConfigured("OPENALEX_LIVE_MIN_RESULTS must be greater than 0.")
+if OPENALEX_LIVE_FETCH_LIMIT <= 0:
+    raise ImproperlyConfigured("OPENALEX_LIVE_FETCH_LIMIT must be greater than 0.")
+if OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS < 0:
+    raise ImproperlyConfigured("OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS must be 0 or greater.")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

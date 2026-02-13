@@ -554,6 +554,19 @@ select {
   gap: 7px;
 }
 
+.compact-list {
+  padding-left: 16px;
+}
+
+.compact-list li {
+  display: grid;
+  gap: 2px;
+}
+
+.onboarding-grid {
+  margin-top: 12px;
+}
+
 .list .redacted {
   color: var(--danger-text);
   font-weight: 700;

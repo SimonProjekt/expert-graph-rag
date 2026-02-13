@@ -1,11 +1,11 @@
 import json
+from unittest.mock import Mock, patch
 from urllib.error import URLError
 
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
-from unittest.mock import Mock, patch
 
 from apps.documents.models import (
     Author,
@@ -85,6 +85,8 @@ def _openalex_payload(*, title: str) -> dict:
 @pytest.mark.django_db
 @override_settings(
     OPENALEX_BASE_URL="https://api.openalex.org",
+    OPENALEX_API_KEY="test-openalex-key",
+    OPENALEX_MAILTO="dev@example.com",
     OPENALEX_PAGE_SIZE=200,
     OPENALEX_HTTP_TIMEOUT_SECONDS=2,
     OPENALEX_MAX_RETRIES=1,
@@ -97,7 +99,7 @@ def test_ingest_openalex_upserts_and_tracks_runs() -> None:
     second_payload = _openalex_payload(title="Graph RAG V2")
 
     with patch(
-        "apps.documents.openalex.urlopen",
+        "apps.documents.openalex_client.urlopen",
         side_effect=[FakeHTTPResponse(first_payload), FakeHTTPResponse(second_payload)],
     ):
         call_command(
@@ -141,6 +143,8 @@ def test_ingest_openalex_upserts_and_tracks_runs() -> None:
 @pytest.mark.django_db
 @override_settings(
     OPENALEX_BASE_URL="https://api.openalex.org",
+    OPENALEX_API_KEY="test-openalex-key",
+    OPENALEX_MAILTO="dev@example.com",
     OPENALEX_PAGE_SIZE=200,
     OPENALEX_HTTP_TIMEOUT_SECONDS=2,
     OPENALEX_MAX_RETRIES=0,
@@ -149,7 +153,7 @@ def test_ingest_openalex_upserts_and_tracks_runs() -> None:
     OPENALEX_SECURITY_LEVEL_RATIOS=(70, 20, 10),
 )
 def test_ingest_openalex_marks_failed_run_on_http_error() -> None:
-    with patch("apps.documents.openalex.urlopen", side_effect=URLError("network down")):
+    with patch("apps.documents.openalex_client.urlopen", side_effect=URLError("network down")):
         with pytest.raises(CommandError):
             call_command("ingest_openalex", "--query", "graph rag", "--limit", "1")
 
@@ -161,6 +165,8 @@ def test_ingest_openalex_marks_failed_run_on_http_error() -> None:
 
 @override_settings(
     OPENALEX_BASE_URL="https://api.openalex.org",
+    OPENALEX_API_KEY="test-openalex-key",
+    OPENALEX_MAILTO="dev@example.com",
     OPENALEX_PAGE_SIZE=200,
     OPENALEX_HTTP_TIMEOUT_SECONDS=2,
     OPENALEX_MAX_RETRIES=2,
@@ -170,6 +176,8 @@ def test_ingest_openalex_marks_failed_run_on_http_error() -> None:
 def test_openalex_client_retries_with_backoff() -> None:
     client = OpenAlexClient(
         base_url="https://api.openalex.org",
+        api_key="test-openalex-key",
+        mailto="dev@example.com",
         timeout_seconds=2,
         max_retries=2,
         backoff_seconds=1,
@@ -180,12 +188,11 @@ def test_openalex_client_retries_with_backoff() -> None:
 
     payload = {"meta": {"next_cursor": None}, "results": []}
     with patch(
-        "apps.documents.openalex.urlopen",
+        "apps.documents.openalex_client.urlopen",
         side_effect=[URLError("temporary"), FakeHTTPResponse(payload)],
-    ), patch("apps.documents.openalex.time.sleep") as sleep_mock:
-        response = client._request_json(
-            "https://api.openalex.org/works?search=test"
-        )
+    ), patch("apps.documents.openalex_client.time.sleep") as sleep_mock:
+        with patch("apps.documents.openalex_client.random.uniform", return_value=0.0):
+            response = client.request(path="/works", params={"search": "test"})
 
     assert response == payload
     sleep_mock.assert_called_once_with(1.0)

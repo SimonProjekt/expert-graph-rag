@@ -17,6 +17,7 @@ from apps.documents.models import (
     SearchAudit,
     SecurityLevel,
 )
+from apps.documents.openalex import OpenAlexReadThroughResult, OpenAlexReadThroughService
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,17 @@ class SearchService:
             clearance=clearance,
             target_unique_papers=target_unique,
         )
+        live_fetch = self._maybe_read_through_fetch(
+            query=query_text,
+            page=page,
+            current_result_count=len(ranked_hits),
+        )
+        if live_fetch.should_rerun_search:
+            ranked_hits, redacted_count = self._collect_ranked_hits(
+                query_vector=query_vector,
+                clearance=clearance,
+                target_unique_papers=target_unique,
+            )
 
         page_start = (page - 1) * self._page_size
         page_hits = ranked_hits[page_start : page_start + self._page_size]
@@ -146,8 +158,39 @@ class SearchService:
             "page": page,
             "page_size": self._page_size,
             "redacted_count": redacted_count,
+            "live_fetch": live_fetch.to_payload(),
             "results": results,
         }
+
+    def _maybe_read_through_fetch(
+        self,
+        *,
+        query: str,
+        page: int,
+        current_result_count: int,
+    ) -> OpenAlexReadThroughResult:
+        live_enabled = bool(getattr(settings, "OPENALEX_LIVE_FETCH", True))
+        if not live_enabled:
+            return OpenAlexReadThroughResult(
+                enabled=False,
+                attempted=False,
+                reason="disabled",
+            )
+
+        try:
+            return OpenAlexReadThroughService().fetch_if_needed(
+                query=query,
+                current_result_count=current_result_count,
+                page=page,
+            )
+        except (DatabaseError, ValueError) as exc:
+            logger.warning("OpenAlex read-through fetch skipped due to error: %s", exc)
+            return OpenAlexReadThroughResult(
+                enabled=live_enabled,
+                attempted=False,
+                reason="error",
+                error=str(exc),
+            )
 
     def _embed_query(self, query: str) -> list[float]:
         try:

@@ -33,8 +33,33 @@ if [[ ! -f "$BACKUP_DIR/neo4j_data.tar.gz" ]]; then
 	exit 1
 fi
 
+detect_compose_cmd() {
+	if docker compose version >/dev/null 2>&1; then
+		echo "docker compose"
+		return
+	fi
+
+	if command -v docker-compose >/dev/null 2>&1; then
+		echo "docker-compose"
+		return
+	fi
+
+	echo ""
+}
+
+COMPOSE_CMD="$(detect_compose_cmd)"
+if [[ -z "$COMPOSE_CMD" ]]; then
+	echo "No Docker Compose command found."
+	echo "Install Docker Compose v2 plugin or docker-compose v1."
+	exit 1
+fi
+
 compose() {
-	docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+	if [[ "$COMPOSE_CMD" == "docker compose" ]]; then
+		docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+	else
+		docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+	fi
 }
 
 wait_for_postgres() {

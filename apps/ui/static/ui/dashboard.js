@@ -410,6 +410,7 @@
       state.lastPayloads.papers = payload;
       renderPapers(payload);
       applyRedaction(payload.redacted_count || 0);
+      renderLiveFetchStatus(payload);
     } catch (error) {
       if (isAbortError(error)) {
         return;
@@ -425,14 +426,17 @@
   function renderPapers(payload) {
     const incoming = Array.isArray(payload.results) ? payload.results.slice() : [];
     const sorted = sortPapers(incoming, state.sortOrder);
+    const liveFetch = payload && typeof payload === "object" ? payload.live_fetch : null;
 
     if (!sorted.length) {
       dom.papers.meta.textContent = "0 papers";
+      dom.papers.empty.textContent = liveFetchEmptyMessage(liveFetch);
       showElement(dom.papers.empty);
       dom.papers.results.innerHTML = "";
       return;
     }
 
+    dom.papers.empty.textContent = "No papers found for this query and clearance.";
     hideElement(dom.papers.empty);
     dom.papers.meta.textContent = `${sorted.length} papers · sorted by ${state.sortOrder}`;
 
@@ -460,6 +464,48 @@
         `;
       })
       .join("");
+  }
+
+  function renderLiveFetchStatus(payload) {
+    const liveFetch = payload && typeof payload === "object" ? payload.live_fetch : null;
+    if (!liveFetch || typeof liveFetch !== "object") {
+      return;
+    }
+    if (!liveFetch.enabled) {
+      return;
+    }
+    if (liveFetch.attempted && liveFetch.reason === "fetched") {
+      const worksProcessed = Number(liveFetch.works_processed || 0);
+      const papersTouched = Number(liveFetch.papers_touched || 0);
+      setStatus(
+        `Live OpenAlex fetch added ${worksProcessed} work(s), touching ${papersTouched} local paper record(s).`
+      );
+      return;
+    }
+    if (!liveFetch.attempted && liveFetch.reason === "missing_api_key") {
+      setStatus("Local results only. Add OPENALEX_API_KEY to enable live OpenAlex fetch.");
+      return;
+    }
+    if (!liveFetch.attempted && liveFetch.reason === "cooldown") {
+      setStatus("Live OpenAlex fetch is cooling down to avoid API spam. Reusing cached local data.");
+      return;
+    }
+    if (liveFetch.attempted && liveFetch.reason === "failed") {
+      setStatus("Live OpenAlex fetch failed. Showing best available local results.");
+    }
+  }
+
+  function liveFetchEmptyMessage(liveFetch) {
+    if (!liveFetch || typeof liveFetch !== "object") {
+      return "No papers found for this query and clearance.";
+    }
+    if (liveFetch.attempted && liveFetch.reason === "fetched") {
+      return "No papers yet after live OpenAlex fetch. Try a broader query or another example.";
+    }
+    if (!liveFetch.attempted && liveFetch.reason === "missing_api_key") {
+      return "No papers found locally. Add OPENALEX_API_KEY to enable live OpenAlex fetch.";
+    }
+    return "No papers found for this query and clearance.";
   }
 
   function renderPapersError(message) {

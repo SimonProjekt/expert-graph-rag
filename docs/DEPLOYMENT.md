@@ -53,6 +53,7 @@ Then edit `.env.prod` and set/verify:
 - `DJANGO_ALLOWED_HOSTS` to your exact host(s)
 - `DATABASE_URL`, `POSTGRES_PASSWORD`, `NEO4J_PASSWORD`
 - `DEBUG=false`
+- `OPENALEX_API_KEY` and `OPENALEX_MAILTO` (recommended for live data)
 
 `OPENAI_API_KEY` is optional. Leave it blank to keep Demo Mode (LLM Disabled).
 
@@ -80,6 +81,13 @@ After DNS propagation, open:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod exec web python manage.py seed_demo_data
+```
+
+OpenAlex-backed seed (recommended if `OPENALEX_API_KEY` is set):
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec web \
+  python manage.py seed_openalex --works 50 --authors 30 --query "machine learning" --years 2022-2026
 ```
 
 Or deploy and seed in one command:

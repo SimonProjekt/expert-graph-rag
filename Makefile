@@ -4,7 +4,7 @@ OPENALEX_LIMIT ?= 500
 
 .PHONY: dev test lint migrate createsuperuser ingest ingest_openalex
 .PHONY: embed_papers embed sync_to_neo4j sync_graph compute_graph_metrics verify_data_pipeline
-.PHONY: seed_demo_data startup_check
+.PHONY: seed_demo_data seed_openalex startup_check stats_openalex
 
 dev:
 	$(COMPOSE) up --build -d
@@ -54,5 +54,14 @@ seed_demo_data:
 	$(WEB_RUN) python manage.py seed_demo_data $(if $(BACKEND),--backend $(BACKEND),) \
 		$(if $(SKIP_GRAPH_SYNC),--skip-graph-sync,)
 
+seed_openalex:
+	$(WEB_RUN) python manage.py seed_openalex --works $${WORKS:-50} --authors $${AUTHORS:-30} \
+		--query "$${QUERY:-machine learning}" --years $${YEARS:-2022-2026} \
+		$${TOPIC:+--topic $$TOPIC} $${BACKEND:+--backend $$BACKEND} \
+		$${BATCH_SIZE:+--batch-size $$BATCH_SIZE} $${SKIP_GRAPH_SYNC:+--skip-graph-sync}
+
 startup_check:
 	$(WEB_RUN) python manage.py startup_check
+
+stats_openalex:
+	$(WEB_RUN) python manage.py stats_openalex

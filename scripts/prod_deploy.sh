@@ -25,8 +25,33 @@ if [[ ! -f "$ENV_FILE" ]]; then
 	exit 1
 fi
 
+detect_compose_cmd() {
+	if docker compose version >/dev/null 2>&1; then
+		echo "docker compose"
+		return
+	fi
+
+	if command -v docker-compose >/dev/null 2>&1; then
+		echo "docker-compose"
+		return
+	fi
+
+	echo ""
+}
+
+COMPOSE_CMD="$(detect_compose_cmd)"
+if [[ -z "$COMPOSE_CMD" ]]; then
+	echo "No Docker Compose command found."
+	echo "Install Docker Compose v2 plugin or docker-compose v1."
+	exit 1
+fi
+
 compose() {
-	docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+	if [[ "$COMPOSE_CMD" == "docker compose" ]]; then
+		docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+	else
+		docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+	fi
 }
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -51,7 +76,11 @@ compose up -d web worker caddy
 
 if [[ "$SEED_DATA" -eq 1 ]]; then
 	echo "Seeding demo data..."
-	compose exec web python manage.py seed_demo_data
+	compose exec web sh -c 'if [ -n "${OPENALEX_API_KEY:-}" ]; then \
+		python manage.py seed_openalex --works 50 --authors 30 --query "machine learning" --years 2022-2026; \
+	else \
+		python manage.py seed_demo_data; \
+	fi'
 fi
 
 echo "Deployment complete."

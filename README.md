@@ -1,10 +1,6 @@
 # expert-graph-rag
 
-A recruiter-friendly Graph RAG demo built with Django + Postgres/pgvector + Neo4j + Redis/Celery.
-
-- Runs without any API keys
-- Uses deterministic/extractive fallback behavior when OpenAI is not configured
-- Includes one-command demo data seeding
+Recruiter-ready Graph RAG demo built with Django + DRF + Postgres/pgvector + Neo4j + Redis/Celery.
 
 ## Run in 60 Seconds
 
@@ -14,106 +10,105 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The app is available at:
+App URL:
 
 - `http://localhost:8000/`
 
-### Required Environment Variables
-
-These are required (or required with default placeholders in `.env.example`):
-
-- `DJANGO_SECRET_KEY`
-- `DEBUG`
-- `DATABASE_URL`
-- `NEO4J_URI`
-- `NEO4J_USER`
-- `NEO4J_PASSWORD`
-- `OPENAI_API_KEY` (optional)
-
-Optional host port overrides (if defaults are busy):
-
-- `WEB_PORT` (default `8000`)
-- `POSTGRES_PORT` (default `5432`)
-- `REDIS_PORT` (default `6379`)
-- `NEO4J_HTTP_PORT` (default `7474`)
-- `NEO4J_BOLT_PORT` (default `7687`)
-
 ## Load Demo Data
 
-In a new terminal, run:
+Fast local fixture seed (no API keys required):
 
 ```bash
 docker compose exec web python manage.py seed_demo_data
 ```
 
-This command will:
+OpenAlex seed (recommended when `OPENALEX_API_KEY` is configured):
 
-- load a small OpenAlex-style fixture dataset
-- generate chunks + embeddings
-- sync Author/Paper/Topic graph into Neo4j
+```bash
+docker compose exec web python manage.py seed_openalex --works 50 --authors 30 --query "machine learning" --years 2022-2026
+```
+
+Topic-based seed examples:
+
+```bash
+docker compose exec web python manage.py seed_openalex --query "telecom optimization" --topic telecom --topic rag --topic knowledge-graph
+```
+
+## OpenAlex Configuration
+
+Add these to `.env`:
+
+- `OPENALEX_API_KEY` (required for live OpenAlex ingestion/fetch)
+- `OPENALEX_MAILTO` (recommended by OpenAlex polite pool guidance)
+
+You can generate an OpenAlex key from your OpenAlex account/dashboard, then place it in `.env`.
+
+All OpenAlex requests include:
+
+- `api_key`
+- `mailto`
+
+and use resilient retries/backoff + rate limiting.
+
+## Live Read-Through Cache (Search)
+
+`/api/search` behavior:
+
+1. Search local chunks first.
+2. If local results are below threshold, trigger live OpenAlex fetch (when enabled).
+3. Upsert works/authors/topics.
+4. Chunk + embed new papers.
+5. Re-run local search and return updated results.
+
+Controls:
+
+- `OPENALEX_LIVE_FETCH=true|false`
+- `OPENALEX_LIVE_MIN_RESULTS`
+- `OPENALEX_LIVE_FETCH_LIMIT`
+- `OPENALEX_LIVE_FETCH_COOLDOWN_SECONDS`
 
 ## Optional: Enable AI Answers
 
-Add your key to `.env`:
+Add:
 
 ```bash
 OPENAI_API_KEY=your_key_here
 ```
 
-Then restart services:
+If omitted, `/api/ask` stays in deterministic extractive mode and UI shows `Demo Mode (LLM Disabled)`.
 
-```bash
-docker compose up --build
-```
+## Health + Integration Proof
 
-If `OPENAI_API_KEY` is empty, `/api/ask` automatically uses extractive summarization,
-and the UI shows:
-
-- `Demo Mode (LLM Disabled)`
-
-## Example Queries to Try
-
-- federated learning for telecom optimization
-- RAN optimization with graph retrieval
-- knowledge graph incident triage
-- 5G capacity planning workflows
-- explainable retrieval for network operations
-- multi-agent scheduling in wireless networks
-
-## Health Endpoint
+Health:
 
 ```bash
 curl -s http://localhost:8000/healthz
+curl -s http://localhost:8000/health
 ```
 
-`/healthz` returns JSON checks for:
+`/health` and `/healthz` include dependency checks plus metrics:
 
-- database
-- neo4j
-- embeddings presence
+- papers/authors/topics counts
+- last OpenAlex sync timestamp
 
-## Startup Diagnostics
-
-On container startup, the app runs `python manage.py startup_check` and prints warnings if:
-
-- embeddings are missing
-- graph data is missing/incomplete
-
-## Data Integration Verification (Optional)
+Verification and stats:
 
 ```bash
 docker compose exec web python manage.py verify_data_pipeline
+docker compose exec web python manage.py stats_openalex
 ```
 
-or:
+## Example Recruiter Queries
 
-```bash
-make verify_data_pipeline
-```
+- `federated learning for telecom networks`
+- `RAN optimization with retrieval-augmented systems`
+- `knowledge graph incident triage for operations`
 
 ## Useful Commands
 
 - `docker compose exec web python manage.py createsuperuser`
+- `docker compose exec web python manage.py ingest_openalex --query "graph rag" --limit 200 --since 2025-01-01`
+- `docker compose exec web python manage.py seed_openalex --works 50 --authors 30 --query "machine learning" --years 2022-2026`
 - `docker compose exec web python manage.py verify_data_pipeline`
-- `docker compose exec web python manage.py startup_check`
-- `docker compose run --rm seed`
+- `docker compose exec web python manage.py stats_openalex`
+

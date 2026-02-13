@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 
 from apps.documents.models import (
     Author,
@@ -14,6 +15,7 @@ from apps.documents.models import (
     SecurityLevel,
     Topic,
 )
+from apps.documents.openalex import OpenAlexReadThroughResult
 
 
 class StaticBackend:
@@ -167,3 +169,65 @@ def test_search_hides_confidential_content_for_internal_clearance(client) -> Non
     serialized = response.content.decode("utf-8")
     assert confidential_paper.title not in serialized
     assert confidential_paper.abstract not in serialized
+
+
+@pytest.mark.django_db
+@override_settings(OPENALEX_LIVE_FETCH=True, OPENALEX_API_KEY="live-fetch-key")
+def test_search_read_through_fetch_can_backfill_local_results(client) -> None:
+    query_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    def fake_live_fetch(self, *, query: str, current_result_count: int, page: int):  # noqa: ANN001
+        _ = self
+        _ = query
+        _ = current_result_count
+        _ = page
+        author = Author.objects.create(
+            name="Live Fetch Author",
+            external_id="author:live-fetch:001",
+            institution_name="Live Labs",
+        )
+        topic = Topic.objects.create(name="Live Topic", external_id="topic:live-fetch:001")
+        paper = Paper.objects.create(
+            title="Live Fetch Paper",
+            abstract="Paper inserted by mocked read-through fetch.",
+            external_id="paper:live-fetch:001",
+            security_level=SecurityLevel.PUBLIC,
+        )
+        Authorship.objects.create(author=author, paper=paper, author_order=1)
+        PaperTopic.objects.create(paper=paper, topic=topic)
+        Embedding.objects.create(
+            paper=paper,
+            chunk_id=0,
+            text_chunk="live fetch searchable chunk",
+            embedding=query_vector,
+        )
+        return OpenAlexReadThroughResult(
+            enabled=True,
+            attempted=True,
+            reason="fetched",
+            works_processed=1,
+            papers_touched=1,
+            chunks_embedded=1,
+            duration_ms=20,
+        )
+
+    with patch("apps.api.services.get_embedding_backend", return_value=StaticBackend(query_vector)):
+        with patch(
+            "apps.api.services.OpenAlexReadThroughService.fetch_if_needed",
+            new=fake_live_fetch,
+        ):
+            response = client.get(
+                "/api/search",
+                {
+                    "query": "live fetch query",
+                    "clearance": SecurityLevel.PUBLIC,
+                    "page": 1,
+                },
+            )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"]
+    assert payload["results"][0]["title"] == "Live Fetch Paper"
+    assert payload["live_fetch"]["attempted"] is True
+    assert payload["live_fetch"]["reason"] == "fetched"

@@ -7,9 +7,10 @@ from typing import Any, Literal, TypedDict
 import redis
 from django.conf import settings
 from django.db import connection
+from django.db.models import Q
 from neo4j import GraphDatabase
 
-from apps.documents.models import Embedding
+from apps.documents.models import Author, Embedding, IngestionRun, IngestionStatus, Paper, Topic
 
 
 class CheckResult(TypedDict):
@@ -20,6 +21,7 @@ class CheckResult(TypedDict):
 class HealthReport(TypedDict):
     status: Literal["ok", "degraded"]
     checks: dict[str, CheckResult]
+    metrics: dict[str, Any]
 
 
 class HealthCheckService:
@@ -33,7 +35,7 @@ class HealthCheckService:
             "redis": self._check_redis(),
         }
         overall = "ok" if all(item["status"] == "ok" for item in checks.values()) else "degraded"
-        return {"status": overall, "checks": checks}
+        return {"status": overall, "checks": checks, "metrics": self._collect_metrics()}
 
     @staticmethod
     def _check_database() -> CheckResult:
@@ -83,3 +85,37 @@ class HealthCheckService:
             return {"status": "ok", "detail": f"embeddings present ({count})"}
 
         return {"status": "error", "detail": "no embeddings present"}
+
+    @staticmethod
+    def _collect_metrics() -> dict[str, Any]:
+        try:
+            last_openalex_run = (
+                IngestionRun.objects.filter(
+                    status=IngestionStatus.SUCCESS,
+                )
+                .filter(
+                    Q(query__icontains="openalex")
+                    | Q(query__startswith="live_fetch:")
+                    | Q(query__icontains="seed_openalex")
+                )
+                .order_by("-finished_at", "-id")
+                .first()
+            )
+            return {
+                "papers": Paper.objects.count(),
+                "authors": Author.objects.count(),
+                "topics": Topic.objects.count(),
+                "last_openalex_sync_at": (
+                    last_openalex_run.finished_at.isoformat()
+                    if last_openalex_run and last_openalex_run.finished_at
+                    else None
+                ),
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "papers": 0,
+                "authors": 0,
+                "topics": 0,
+                "last_openalex_sync_at": None,
+                "error": f"metrics collection failed: {exc}",
+            }

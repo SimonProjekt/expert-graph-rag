@@ -54,6 +54,8 @@ class Command(BaseCommand):
             raise CommandError("--query cannot be empty.")
         if limit <= 0:
             raise CommandError("--limit must be greater than 0.")
+        if not settings.OPENALEX_API_KEY:
+            raise CommandError("OPENALEX_API_KEY is required for ingest_openalex.")
 
         since = self._parse_since(since_raw)
 
@@ -79,6 +81,8 @@ class Command(BaseCommand):
         try:
             client = OpenAlexClient(
                 base_url=settings.OPENALEX_BASE_URL,
+                api_key=settings.OPENALEX_API_KEY,
+                mailto=settings.OPENALEX_MAILTO,
                 timeout_seconds=settings.OPENALEX_HTTP_TIMEOUT_SECONDS,
                 max_retries=settings.OPENALEX_MAX_RETRIES,
                 backoff_seconds=settings.OPENALEX_BACKOFF_SECONDS,
