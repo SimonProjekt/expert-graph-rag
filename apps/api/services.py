@@ -296,22 +296,51 @@ class SearchService:
             )
 
     def _embed_query(self, query: str) -> list[float]:
+        primary_backend = settings.EMBEDDING_BACKEND
         try:
-            backend = get_embedding_backend(
-                backend_name=settings.EMBEDDING_BACKEND,
-                embedding_dim=settings.EMBEDDING_DIM,
-                local_model_name=settings.LOCAL_EMBEDDING_MODEL,
-                openai_api_key=settings.OPENAI_API_KEY,
-                openai_model_name=settings.OPENAI_EMBEDDING_MODEL,
-                allow_hash_fallback=settings.ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK,
-            )
-            vectors = backend.embed_texts([query])
+            return self._embed_query_with_backend(query=query, backend_name=primary_backend)
         except EmbeddingBackendError as exc:
-            raise SearchBackendError(str(exc)) from exc
+            if not self._should_try_local_fallback(primary_backend):
+                raise SearchBackendError(str(exc)) from exc
 
+            logger.warning(
+                "Primary embedding backend failed for search; retrying with local fallback."
+            )
+            try:
+                return self._embed_query_with_backend(query=query, backend_name="local")
+            except EmbeddingBackendError as fallback_exc:
+                raise SearchBackendError(
+                    f"{exc} (local fallback failed: {fallback_exc})"
+                ) from fallback_exc
+
+    def _embed_query_with_backend(self, *, query: str, backend_name: str) -> list[float]:
+        backend = get_embedding_backend(
+            backend_name=backend_name,
+            embedding_dim=settings.EMBEDDING_DIM,
+            local_model_name=settings.LOCAL_EMBEDDING_MODEL,
+            openai_api_key=settings.OPENAI_API_KEY,
+            openai_model_name=settings.OPENAI_EMBEDDING_MODEL,
+            allow_hash_fallback=settings.ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK,
+        )
+        vectors = backend.embed_texts([query])
         if not vectors:
-            raise SearchBackendError("Embedding backend returned no vectors.")
-        return self._normalize_vector(vectors[0])
+            raise EmbeddingBackendError("Embedding backend returned no vectors.")
+        try:
+            return self._normalize_vector(vectors[0])
+        except SearchBackendError as exc:
+            raise EmbeddingBackendError(str(exc)) from exc
+
+    @staticmethod
+    def _should_try_local_fallback(backend_name: str) -> bool:
+        if not settings.ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK:
+            return False
+
+        normalized = (backend_name or "auto").strip().lower()
+        if normalized == "local":
+            return False
+        if normalized == "openai":
+            return True
+        return bool(settings.OPENAI_API_KEY)
 
     def _collect_ranked_hits(
         self,

@@ -130,26 +130,42 @@ class AskService:
         }
 
     def _embed_query(self, query: str) -> list[float]:
+        primary_backend = settings.EMBEDDING_BACKEND
         try:
-            backend = get_embedding_backend(
-                backend_name=settings.EMBEDDING_BACKEND,
-                embedding_dim=settings.EMBEDDING_DIM,
-                local_model_name=settings.LOCAL_EMBEDDING_MODEL,
-                openai_api_key=settings.OPENAI_API_KEY,
-                openai_model_name=settings.OPENAI_EMBEDDING_MODEL,
-                allow_hash_fallback=settings.ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK,
-            )
-            vectors = backend.embed_texts([query])
+            return self._embed_query_with_backend(query=query, backend_name=primary_backend)
         except EmbeddingBackendError as exc:
-            raise AskBackendError(str(exc)) from exc
+            if not self._should_try_local_fallback(primary_backend):
+                raise AskBackendError(str(exc)) from exc
 
+            logger.warning(
+                "Primary embedding backend failed for ask; retrying with local fallback."
+            )
+            try:
+                return self._embed_query_with_backend(query=query, backend_name="local")
+            except EmbeddingBackendError as fallback_exc:
+                raise AskBackendError(
+                    f"{exc} (local fallback failed: {fallback_exc})"
+                ) from fallback_exc
+
+    def _embed_query_with_backend(self, *, query: str, backend_name: str) -> list[float]:
+        backend = get_embedding_backend(
+            backend_name=backend_name,
+            embedding_dim=settings.EMBEDDING_DIM,
+            local_model_name=settings.LOCAL_EMBEDDING_MODEL,
+            openai_api_key=settings.OPENAI_API_KEY,
+            openai_model_name=settings.OPENAI_EMBEDDING_MODEL,
+            allow_hash_fallback=settings.ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK,
+        )
+        vectors = backend.embed_texts([query])
         if not vectors:
-            raise AskBackendError("Embedding backend returned no vectors.")
+            raise EmbeddingBackendError("Embedding backend returned no vectors.")
 
         try:
             values = [float(value) for value in vectors[0]]
         except (TypeError, ValueError) as exc:
-            raise AskBackendError("Embedding backend returned non-numeric query vector.") from exc
+            raise EmbeddingBackendError(
+                "Embedding backend returned non-numeric query vector."
+            ) from exc
 
         expected = settings.EMBEDDING_DIM
         if len(values) == expected:
@@ -157,6 +173,18 @@ class AskService:
         if len(values) > expected:
             return values[:expected]
         return values + [0.0] * (expected - len(values))
+
+    @staticmethod
+    def _should_try_local_fallback(backend_name: str) -> bool:
+        if not settings.ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK:
+            return False
+
+        normalized = (backend_name or "auto").strip().lower()
+        if normalized == "local":
+            return False
+        if normalized == "openai":
+            return True
+        return bool(settings.OPENAI_API_KEY)
 
     def _retrieve_top_chunks(self, *, query_vector: list[float]) -> list[RetrievedChunk]:
         queryset: QuerySet[Embedding] = (

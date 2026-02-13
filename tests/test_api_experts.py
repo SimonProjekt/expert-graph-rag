@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from django.test import override_settings
 
+from apps.documents.embedding_backends import EmbeddingBackendError
 from apps.documents.models import (
     Author,
     Authorship,
@@ -25,6 +26,12 @@ class StaticBackend:
         return [list(self._vector) for _ in texts]
 
 
+class FailingBackend:
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        _ = texts
+        raise EmbeddingBackendError("openai embedding failed")
+
+
 @pytest.fixture
 def query_vector() -> list[float]:
     return [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -37,6 +44,51 @@ def patched_expert_backend(query_vector: list[float]):
         return_value=StaticBackend(query_vector),
     ):
         yield
+
+
+@pytest.mark.django_db
+@override_settings(EMBEDDING_BACKEND="auto", OPENAI_API_KEY="invalid-openai-key")
+def test_experts_fall_back_to_local_embeddings_when_primary_backend_fails(client) -> None:
+    topic = Topic.objects.create(
+        name="Fallback Experts Topic",
+        external_id="topic:experts:fb:001",
+    )
+    author = Author.objects.create(
+        name="Fallback Expert",
+        external_id="author:experts:fb:001",
+        institution_name="Fallback Lab",
+    )
+    paper = Paper.objects.create(
+        title="Fallback Experts Paper",
+        abstract="A resilient experts test paper.",
+        external_id="paper:experts:fb:001",
+        published_date=date(2025, 1, 1),
+        security_level=SecurityLevel.PUBLIC,
+    )
+    Authorship.objects.create(author=author, paper=paper, author_order=1)
+    PaperTopic.objects.create(paper=paper, topic=topic)
+    vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Embedding.objects.create(
+        paper=paper,
+        chunk_id=0,
+        text_chunk="fallback experts chunk",
+        embedding=vector,
+    )
+
+    with patch(
+        "apps.api.experts.get_embedding_backend",
+        side_effect=[FailingBackend(), StaticBackend(vector)],
+    ) as backend_mock:
+        response = client.get(
+            "/api/experts",
+            {"query": "fallback experts", "clearance": SecurityLevel.PUBLIC},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["experts"]
+    assert payload["experts"][0]["name"] == "Fallback Expert"
+    assert backend_mock.call_count == 2
 
 
 @pytest.mark.django_db

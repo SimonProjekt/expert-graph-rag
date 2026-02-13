@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from django.test import override_settings
 
+from apps.documents.embedding_backends import EmbeddingBackendError
 from apps.documents.models import (
     Author,
     Authorship,
@@ -24,6 +25,62 @@ class StaticBackend:
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return [list(self._vector) for _ in texts]
+
+
+class FailingBackend:
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        _ = texts
+        raise EmbeddingBackendError("openai embedding failed")
+
+
+@pytest.mark.django_db
+@override_settings(
+    EMBEDDING_BACKEND="auto",
+    OPENAI_API_KEY="invalid-openai-key",
+    OPENALEX_LIVE_FETCH=False,
+)
+def test_search_falls_back_to_local_embeddings_when_primary_backend_fails(client) -> None:
+    author = Author.objects.create(
+        name="Fallback Author",
+        external_id="author:fallback:001",
+        institution_name="Fallback Lab",
+    )
+    paper = Paper.objects.create(
+        title="Fallback Search Paper",
+        abstract="A resilient search test paper.",
+        external_id="paper:fallback:001",
+        security_level=SecurityLevel.PUBLIC,
+    )
+    topic = Topic.objects.create(name="Fallback Topic", external_id="topic:fallback:001")
+    Authorship.objects.create(author=author, paper=paper, author_order=1)
+    PaperTopic.objects.create(paper=paper, topic=topic)
+
+    vector = [0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Embedding.objects.create(
+        paper=paper,
+        chunk_id=0,
+        text_chunk="fallback search chunk",
+        embedding=vector,
+    )
+
+    with patch(
+        "apps.api.services.get_embedding_backend",
+        side_effect=[FailingBackend(), StaticBackend(vector)],
+    ) as backend_mock:
+        response = client.get(
+            "/api/search",
+            {
+                "query": "fallback search",
+                "clearance": SecurityLevel.PUBLIC,
+                "page": 1,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"]
+    assert payload["results"][0]["title"] == "Fallback Search Paper"
+    assert backend_mock.call_count == 2
 
 
 @pytest.mark.django_db

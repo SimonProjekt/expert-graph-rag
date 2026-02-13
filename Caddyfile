@@ -25,6 +25,14 @@
 		file_server
 	}
 
+	# Lovable/Vite builds often reference root-relative assets (e.g. /assets/*).
+	# Serve them directly so /app can render without rewriting the generated bundle.
+	@frontend_assets path /assets/* /favicon.ico /robots.txt /manifest.json /site.webmanifest /placeholder.svg
+	handle @frontend_assets {
+		root * /srv/frontend
+		file_server
+	}
+
 	# Optional external frontend (e.g. Lovable export) mounted at /srv/frontend
 	# Served at /app while keeping Django UI available at /
 	handle_path /app* {
