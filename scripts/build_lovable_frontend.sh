@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_DIR="${1:-$ROOT_DIR/frontend/lovable-src}"
 OUTPUT_DIR="${2:-$ROOT_DIR/frontend/static}"
-API_BASE_URL="${VITE_API_BASE_URL:-/api}"
+API_BASE_URL="${VITE_API_BASE_URL:-}"
 
 if [[ ! -d "$SOURCE_DIR" ]]; then
 	echo "Source directory not found: $SOURCE_DIR"

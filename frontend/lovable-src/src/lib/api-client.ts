@@ -6,7 +6,8 @@ import type {
   HealthResponse,
 } from "@/types/api";
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const RAW_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
+const BASE = RAW_BASE === "/api" ? "" : RAW_BASE.replace(/\/+$/, "");
 
 // ─── LRU Cache (10 entries) ─────────────────────────────────
 class LRUCache<V> {
@@ -42,7 +43,8 @@ async function fetchJson<T>(
   signal?: AbortSignal
 ): Promise<T> {
   const qs = new URLSearchParams(params).toString();
-  const url = `${BASE}${path}?${qs}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${BASE}${normalizedPath}?${qs}`;
   const cacheKey = url;
 
   const cached = cache.get(cacheKey);
