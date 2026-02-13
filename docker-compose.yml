@@ -2,6 +2,9 @@ services:
   web:
     build:
       context: .
+      args:
+        INSTALL_DEV: "true"
+        INSTALL_LOCAL_EMBEDDINGS: "true"
     command: >-
       sh -c "python manage.py migrate
       && python manage.py startup_check
@@ -25,6 +28,9 @@ services:
   worker:
     build:
       context: .
+      args:
+        INSTALL_DEV: "true"
+        INSTALL_LOCAL_EMBEDDINGS: "true"
     command: >-
       sh -c "python manage.py startup_check
       && celery -A config worker -l INFO"
@@ -45,6 +51,9 @@ services:
   seed:
     build:
       context: .
+      args:
+        INSTALL_DEV: "true"
+        INSTALL_LOCAL_EMBEDDINGS: "true"
     command: python manage.py seed_demo_data
     env_file:
       - .env
