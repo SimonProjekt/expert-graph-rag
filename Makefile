@@ -52,16 +52,19 @@ verify_data_pipeline:
 	$(WEB_RUN) python manage.py verify_data_pipeline $(if $(QUERY),--query "$(QUERY)",)
 
 seed_demo_data:
+	$(COMPOSE) build web
 	$(WEB_RUN) python manage.py seed_demo_data $(if $(BACKEND),--backend $(BACKEND),) \
 		$(if $(SKIP_GRAPH_SYNC),--skip-graph-sync,)
 
 seed_openalex:
+	$(COMPOSE) build web
 	$(WEB_RUN) python manage.py seed_openalex --works $${WORKS:-50} --authors $${AUTHORS:-30} \
 		--query "$${QUERY:-machine learning}" --years $${YEARS:-2022-2026} \
 		$${TOPIC:+--topic $$TOPIC} $${BACKEND:+--backend $$BACKEND} \
 		$${BATCH_SIZE:+--batch-size $$BATCH_SIZE} $${SKIP_GRAPH_SYNC:+--skip-graph-sync}
 
 seed_interview_data:
+	$(COMPOSE) build web
 	$(WEB_RUN) python manage.py seed_interview_data --works-per-query $${WORKS_PER_QUERY:-80} \
 		--authors-per-query $${AUTHORS_PER_QUERY:-40} --years $${YEARS:-2021-2026} \
 		--backend $${BACKEND:-local} --batch-size $${BATCH_SIZE:-128} \
