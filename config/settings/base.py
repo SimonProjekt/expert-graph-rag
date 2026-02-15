@@ -306,4 +306,16 @@ LOGGING = {
         "handlers": ["console"],
         "level": LOG_LEVEL,
     },
+    "loggers": {
+        "openai._base_client": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "neo4j.notifications": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
 }

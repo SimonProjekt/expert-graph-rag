@@ -29,7 +29,7 @@ def test_ui_routes_smoke(client) -> None:
     assert "Open Workspace" in landing_content
     assert "Set Demo Role" not in landing_content
     assert "LLM Enabled" not in landing_content
-    assert "Expert Graph RAG" in home_content
+    assert "SignalGraph AI" in home_content
     assert "Try These Queries" in home_content
     assert "Query expansion depth" in home_content
     assert "Path-only focus mode" in home_content

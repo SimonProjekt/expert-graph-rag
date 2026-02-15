@@ -72,8 +72,8 @@ class Command(BaseCommand):
             "--backend",
             type=str,
             choices=["auto", "local", "openai"],
-            default="auto",
-            help="Embedding backend selection (default: auto).",
+            default="local",
+            help="Embedding backend selection (default: local).",
         )
         parser.add_argument(
             "--batch-size",

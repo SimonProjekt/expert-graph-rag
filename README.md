@@ -1,6 +1,6 @@
-# expert-graph-rag
+# SignalGraph AI (`expert-graph-rag`)
 
-Recruiter-ready Graph RAG demo built with Django + DRF + Postgres/pgvector + Neo4j + Redis/Celery.
+Knowledge discovery demo built with Django + DRF + Postgres/pgvector + Neo4j + Redis/Celery.
 
 ## Run in 60 Seconds
 
@@ -190,7 +190,7 @@ docker compose exec web python manage.py verify_data_pipeline
 docker compose exec web python manage.py stats_openalex
 ```
 
-## Example Recruiter Queries
+## Example Queries
 
 - `5G RAN optimization with AI scheduling`
 - `network slicing orchestration reliability`
@@ -203,7 +203,7 @@ docker compose exec web python manage.py stats_openalex
 
 ## 2-Minute Demo Flow
 
-1. Open `/` and click **Try the Demo**.
+1. Open `/` and click **Open Workspace**.
 2. Run `5G RAN optimization with AI scheduling` in the Papers tab.
 3. Switch to Experts and explain score breakdown + why-ranked text.
 4. Switch to Graph to show Author-Paper-Topic paths.
