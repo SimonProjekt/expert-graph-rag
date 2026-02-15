@@ -373,12 +373,14 @@ def test_search_graph_expansion_returns_connected_papers_with_explainability(cli
     assert expanded["graph_hop_distance"] in {1, 2}
     assert "Ranked because" in expanded["why_matched"]
     assert "query -> seed_paper:" in expanded["graph_path"]
-    assert set(expanded["score_breakdown"].keys()) == {
+    assert {
         "semantic_relevance",
         "query_alignment",
+        "graph_proximity",
+        "citation_authority",
         "graph_authority",
         "graph_centrality",
-    }
+    }.issubset(set(expanded["score_breakdown"].keys()))
 
 
 @pytest.mark.django_db

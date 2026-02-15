@@ -11,6 +11,7 @@ from django.db import DatabaseError
 from django.db.models import Prefetch, QuerySet
 from pgvector.django import CosineDistance
 
+from apps.api.query_optimizer import OptimizedQuery, optimize_query
 from apps.documents.embedding_backends import EmbeddingBackendError, get_embedding_backend
 from apps.documents.models import (
     Authorship,
@@ -96,6 +97,8 @@ class ScoredPaperHit:
     hit: RankedPaperHit
     semantic_relevance: float
     query_alignment: float
+    graph_proximity: float
+    citation_authority: float
     graph_authority: float
     graph_centrality: float
     total_score: float
@@ -155,6 +158,8 @@ class SearchService:
             raise SearchExecutionError("graph_expansion_limit must be zero or greater.")
         if self._graph_hop_limit not in {1, 2}:
             raise SearchExecutionError("graph_hop_limit must be 1 or 2.")
+        self._max_returned_papers = 3
+        self._min_relevance_score = 0.24
 
     def search(
         self,
@@ -176,9 +181,12 @@ class SearchService:
         if page <= 0:
             raise SearchExecutionError("page must be greater than zero.")
 
+        optimized = optimize_query(query_text)
+        retrieval_query = optimized.optimized_query or optimized.normalized_query or query_text
+
         started = time.monotonic()
-        query_vector = self._embed_query(query_text)
-        target_unique = page * self._page_size
+        query_vector = self._embed_query(retrieval_query)
+        target_unique = page * self._max_returned_papers
         semantic_target = max(target_unique, self._graph_seed_papers)
         ranked_hits, redacted_count = self._collect_ranked_hits(
             query_vector=query_vector,
@@ -186,7 +194,7 @@ class SearchService:
             target_unique_papers=semantic_target,
         )
         live_fetch = self._maybe_read_through_fetch(
-            query=query_text,
+            query=retrieval_query,
             page=page,
             current_result_count=len(ranked_hits),
         )
@@ -224,12 +232,13 @@ class SearchService:
 
         scored_hits = self._score_hits(
             query_text=query_text,
+            optimized_query=optimized,
             hits_by_paper=ranked_by_paper,
             path_hints=path_hints,
         )
+        scored_hits = self._trim_low_relevance_hits(scored_hits)[: self._max_returned_papers]
 
-        page_start = (page - 1) * self._page_size
-        page_scored_hits = scored_hits[page_start : page_start + self._page_size]
+        page_scored_hits = scored_hits if page == 1 else []
         paper_ids = [scored.hit.paper_id for scored in page_scored_hits]
         chunk_ids = [scored.hit.best_chunk_id for scored in page_scored_hits]
 
@@ -261,6 +270,8 @@ class SearchService:
                     "score_breakdown": {
                         "semantic_relevance": round(scored_hit.semantic_relevance, 4),
                         "query_alignment": round(scored_hit.query_alignment, 4),
+                        "graph_proximity": round(scored_hit.graph_proximity, 4),
+                        "citation_authority": round(scored_hit.citation_authority, 4),
                         "graph_authority": round(scored_hit.graph_authority, 4),
                         "graph_centrality": round(scored_hit.graph_centrality, 4),
                     },
@@ -281,9 +292,10 @@ class SearchService:
 
         return {
             "query": query_text,
+            "optimized_query": retrieval_query,
             "clearance": clearance,
             "page": page,
-            "page_size": self._page_size,
+            "page_size": self._max_returned_papers,
             "redacted_count": redacted_count,
             "hidden_count": redacted_count,
             "result_count": len(results),
@@ -694,6 +706,7 @@ class SearchService:
         self,
         *,
         query_text: str,
+        optimized_query: OptimizedQuery,
         hits_by_paper: dict[int, RankedPaperHit],
         path_hints: dict[int, GraphPathHint],
     ) -> list[ScoredPaperHit]:
@@ -713,7 +726,7 @@ class SearchService:
         papers_by_author: dict[int, set[int]] = {}
         papers_by_topic: dict[str, set[int]] = {}
 
-        query_terms = self._tokenize(query_text)
+        query_terms = set(optimized_query.expanded_terms) if optimized_query else self._tokenize(query_text)
         query_has_telecom_intent = self._has_telecom_intent(query_terms)
 
         for paper_id, paper in papers.items():
@@ -735,7 +748,7 @@ class SearchService:
             paper_topics_lower[paper_id] = topic_lower
             paper_topics_display[paper_id] = topic_display
             paper_query_alignment[paper_id] = self._query_alignment(
-                query_text=query_text,
+                query_text=(optimized_query.normalized_query if optimized_query else query_text),
                 query_terms=query_terms,
                 title=paper.title,
                 abstract=paper.abstract,
@@ -789,15 +802,24 @@ class SearchService:
             graph_authority = (raw_authority / max_authority_raw) if max_authority_raw > 0 else 0.0
             centrality_raw = paper_avg_centrality.get(paper_id, 0.0)
             graph_centrality = (centrality_raw / max_centrality) if max_centrality > 0 else 0.0
+            graph_hop_proximity = 1.0
+            if hit.hop_distance == 1:
+                graph_hop_proximity = 0.78
+            elif hit.hop_distance >= 2:
+                graph_hop_proximity = 0.58
+            graph_proximity = max(
+                0.0,
+                min(1.0, (0.68 * query_alignment) + (0.18 * graph_hop_proximity) + (0.14 * graph_centrality)),
+            )
+            citation_authority = graph_authority
 
             total_score = (
-                (0.52 * semantic_relevance)
-                + (0.23 * query_alignment)
-                + (0.17 * graph_authority)
-                + (0.08 * graph_centrality)
+                (0.58 * semantic_relevance)
+                + (0.27 * graph_proximity)
+                + (0.15 * citation_authority)
             )
             if query_has_telecom_intent and telecom_alignment <= 0.0:
-                total_score *= 0.85
+                total_score *= 0.80
 
             hint = path_hints.get(paper_id)
             graph_path = self._graph_path_for_paper(paper_id=paper_id, hint=hint)
@@ -809,6 +831,8 @@ class SearchService:
             why_matched = self._why_matched(
                 semantic_relevance=semantic_relevance,
                 query_alignment=query_alignment,
+                graph_proximity=graph_proximity,
+                citation_authority=citation_authority,
                 graph_authority=graph_authority,
                 graph_centrality=graph_centrality,
                 source=hit.source,
@@ -822,6 +846,8 @@ class SearchService:
                     hit=hit,
                     semantic_relevance=semantic_relevance,
                     query_alignment=query_alignment,
+                    graph_proximity=graph_proximity,
+                    citation_authority=citation_authority,
                     graph_authority=graph_authority,
                     graph_centrality=graph_centrality,
                     total_score=total_score,
@@ -998,6 +1024,8 @@ class SearchService:
         *,
         semantic_relevance: float,
         query_alignment: float,
+        graph_proximity: float,
+        citation_authority: float,
         graph_authority: float,
         graph_centrality: float,
         source: str,
@@ -1008,6 +1036,8 @@ class SearchService:
         parts = [
             f"semantic={semantic_relevance:.2f}",
             f"query_alignment={query_alignment:.2f}",
+            f"graph_proximity={graph_proximity:.2f}",
+            f"citation_authority={citation_authority:.2f}",
             f"graph_authority={graph_authority:.2f}",
             f"centrality={graph_centrality:.2f}",
         ]
@@ -1024,6 +1054,15 @@ class SearchService:
             parts.append("direct semantic match")
         parts.append(f"source={source}")
         return "Ranked because " + "; ".join(parts) + "."
+
+    def _trim_low_relevance_hits(self, scored_hits: list[ScoredPaperHit]) -> list[ScoredPaperHit]:
+        if not scored_hits:
+            return []
+
+        filtered = [hit for hit in scored_hits if hit.total_score >= self._min_relevance_score]
+        if filtered:
+            return filtered
+        return scored_hits[:1]
 
     @staticmethod
     def _normalize_vector(vector: list[float]) -> list[float]:

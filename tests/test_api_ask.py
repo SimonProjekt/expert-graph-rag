@@ -93,7 +93,9 @@ def test_ask_falls_back_to_local_embeddings_when_primary_backend_fails(
     assert response.status_code == 200
     payload = response.json()
     assert payload["answer"]
-    assert "1. Concise answer" in payload["answer"]
+    assert isinstance(payload["answer_payload"], dict)
+    assert payload["answer_payload"]["answer"]
+    assert payload["answer_payload"]["confidence"] in {"high", "medium", "low"}
     assert payload["citations"]
     assert ask_backend_mock.call_count == 2
 
@@ -169,11 +171,10 @@ def test_ask_fallback_mode_returns_extractive_answer_with_citations(
     payload = response.json()
 
     assert payload["answer"]
-    assert "1. Concise answer" in payload["answer"]
-    assert "2. Evidence bullets" in payload["answer"]
-    assert "3. Citations" in payload["answer"]
-    assert "4. Suggested follow-up questions" in payload["answer"]
-    assert "[1]" in payload["answer"]
+    assert isinstance(payload["answer_payload"], dict)
+    assert payload["answer_payload"]["key_points"]
+    assert payload["answer_payload"]["evidence_used"]
+    assert payload["answer_payload"]["confidence"] in {"high", "medium", "low"}
     assert len(payload["citations"]) >= 1
     assert any(citation["redacted"] for citation in payload["citations"])
     assert len(payload["recommended_experts"]) <= 5
@@ -218,14 +219,13 @@ def test_ask_openai_mode_calls_server_side_llm_and_returns_citations(
     )
 
     llm_output = (
-        "1. Concise answer\n"
-        "Use grounded retrieval [1].\n\n"
-        "2. Evidence bullets\n"
-        "- The top chunk explains grounded retrieval [1].\n\n"
-        "3. Citations\n"
-        "- [1] paper:ask:ai:001\n\n"
-        "4. Suggested follow-up questions\n"
-        "- Which expert should I contact?\n"
+        '{'
+        '"answer": "Use grounded retrieval.",'
+        '"key_points": ["The top chunk explains grounded retrieval [1]."],'
+        '"evidence_used": [{"source": "[1] paper:ask:ai:001", "reason": "Direct match in retrieved chunk."}],'
+        '"confidence": "high",'
+        '"limitations": "Limited to retrieved context."'
+        '}'
     )
     llm_mock = patch.object(OpenAIAnswerService, "generate_answer", return_value=llm_output)
 
@@ -254,7 +254,9 @@ def test_ask_openai_mode_calls_server_side_llm_and_returns_citations(
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["answer"] == llm_output.strip()
+    assert payload["answer"] == "Use grounded retrieval."
+    assert payload["answer_payload"]["confidence"] == "high"
+    assert payload["answer_payload"]["evidence_used"]
     assert payload["citations"]
     assert payload["citations"][0]["paper_title"] == "AI Retrieval Guide"
     assert len(payload["recommended_experts"]) == 1

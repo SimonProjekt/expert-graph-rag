@@ -53,7 +53,6 @@
     clearanceSelect: document.getElementById("clearance-select"),
     sortSelect: document.getElementById("paper-sort"),
     runSearchButton: document.getElementById("run-search"),
-    clearanceBadge: document.getElementById("clearance-badge"),
     exampleButtons: Array.from(document.querySelectorAll("#example-queries .chip")),
     tabButtons: Array.from(document.querySelectorAll(".tab-button")),
     tabPanels: {
@@ -150,9 +149,6 @@
     if (dom.clearanceSelect) {
       dom.clearanceSelect.addEventListener("change", () => {
         state.clearance = dom.clearanceSelect.value;
-        if (dom.clearanceBadge) {
-          dom.clearanceBadge.textContent = `Clearance: ${state.clearance}`;
-        }
         abortAllRequests();
         runActiveTabFetch();
         syncUrl();
@@ -325,9 +321,6 @@
     }
     if (dom.sortSelect) {
       dom.sortSelect.value = state.sortOrder;
-    }
-    if (dom.clearanceBadge) {
-      dom.clearanceBadge.textContent = `Clearance: ${state.clearance}`;
     }
     if (dom.graph.densitySelect) {
       dom.graph.densitySelect.value = state.graph.density;
@@ -521,13 +514,11 @@
       payload && typeof payload === "object" && Number.isFinite(Number(payload.took_ms))
         ? Number(payload.took_ms)
         : null;
-    const resultCount =
-      payload && typeof payload === "object" && Number.isFinite(Number(payload.result_count))
-        ? Number(payload.result_count)
-        : sorted.length;
 
     if (!sorted.length) {
-      dom.papers.meta.textContent = "0 papers";
+      if (dom.papers.meta) {
+        dom.papers.meta.textContent = "No matching papers";
+      }
       dom.papers.empty.textContent = liveFetchEmptyMessage(liveFetch);
       showElement(dom.papers.empty);
       dom.papers.results.innerHTML = "";
@@ -537,7 +528,9 @@
     dom.papers.empty.textContent = "No papers found for this query and clearance.";
     hideElement(dom.papers.empty);
     const timingText = tookMs !== null ? ` · ${tookMs} ms` : "";
-    dom.papers.meta.textContent = `${resultCount} papers · sorted by ${state.sortOrder}${timingText}`;
+    if (dom.papers.meta) {
+      dom.papers.meta.textContent = `Sorted by ${state.sortOrder}${timingText}`;
+    }
 
     dom.papers.results.innerHTML = sorted
       .map((paper) => {
@@ -628,7 +621,9 @@
   }
 
   function renderPapersError(message) {
-    dom.papers.meta.textContent = "Error";
+    if (dom.papers.meta) {
+      dom.papers.meta.textContent = "Error";
+    }
     dom.papers.results.innerHTML = "";
     dom.papers.error.textContent = message;
     showElement(dom.papers.error);
@@ -676,13 +671,17 @@
     const experts = Array.isArray(payload.experts) ? payload.experts : [];
 
     if (!experts.length) {
-      dom.experts.meta.textContent = "0 experts";
+      if (dom.experts.meta) {
+        dom.experts.meta.textContent = "No matching experts";
+      }
       showElement(dom.experts.empty);
       return;
     }
 
     hideElement(dom.experts.empty);
-    dom.experts.meta.textContent = `${experts.length} ranked expert(s)`;
+    if (dom.experts.meta) {
+      dom.experts.meta.textContent = "Ranked by semantic and graph signals";
+    }
 
     dom.experts.results.innerHTML = experts
       .map((expert, index) => {
@@ -694,8 +693,9 @@
         const recency = normalizeScore(expert.score_breakdown?.recency_boost);
         const coverage = normalizeScore(expert.score_breakdown?.topic_coverage);
         const queryAlignment = normalizeScore(expert.score_breakdown?.query_alignment);
+        const graphProximity = normalizeScore(expert.score_breakdown?.graph_proximity);
+        const citationAuthority = normalizeScore(expert.score_breakdown?.citation_authority);
         const centrality = normalizeScore(expert.score_breakdown?.graph_centrality);
-        const matchedPapers = Number(expert.matched_paper_count || expert.top_papers?.length || 0);
         const topPaperList = Array.isArray(expert.top_papers) ? expert.top_papers : [];
         const topPaperHtml = topPaperList
           .slice(0, 3)
@@ -712,13 +712,14 @@
               ${index + 1}. <a href="${profileHref}">${escapeHtml(expert.name || "Unknown")}</a>
             </h3>
             <p>${escapeHtml(expert.institution || "")}</p>
-            <p class="muted">Matched papers: ${matchedPapers}</p>
             <div class="meta-list">${asChipList(expert.top_topics || [], "")}</div>
 
             <div class="score-grid" aria-label="Score breakdown for ${escapeHtml(expert.name || "expert")}">
               ${scoreRow("Semantic", semantic)}
-              ${scoreRow("Query", queryAlignment)}
+              ${scoreRow("Graph proximity", graphProximity)}
+              ${scoreRow("Citation auth.", citationAuthority)}
               ${scoreRow("Recency", recency)}
+              ${scoreRow("Query", queryAlignment)}
               ${scoreRow("Coverage", coverage)}
               ${scoreRow("Centrality", centrality)}
             </div>
@@ -739,7 +740,9 @@
   }
 
   function renderExpertsError(message) {
-    dom.experts.meta.textContent = "Error";
+    if (dom.experts.meta) {
+      dom.experts.meta.textContent = "Error";
+    }
     dom.experts.error.textContent = message;
     showElement(dom.experts.error);
     setStatus("Expert ranking failed.");
@@ -1548,7 +1551,9 @@
 
   function renderAsk(payload) {
     showElement(dom.ask.results);
-    dom.ask.answer.innerHTML = renderStructuredAnswer(payload.answer || "No answer available.");
+    dom.ask.answer.innerHTML = renderStructuredAnswer(
+      payload.answer_payload || payload.answer || "No answer available."
+    );
 
     const citations = Array.isArray(payload.citations) ? payload.citations : [];
     dom.ask.citations.innerHTML = citations
@@ -1842,38 +1847,99 @@
     `;
   }
 
-  function renderStructuredAnswer(text) {
-    const sections = parseStructuredAnswer(text);
-    const concise = sections.concise.join(" ").trim() || "No concise answer available.";
-    const evidence = sections.evidence.length
-      ? sections.evidence
-      : ["No explicit evidence bullets were returned."];
-    const followUps = sections.followUps.length ? sections.followUps : [];
+  function renderStructuredAnswer(value) {
+    const normalized = normalizeStructuredAnswer(value);
+    const keyPoints = normalized.key_points.length
+      ? normalized.key_points
+      : ["No key points were returned."];
+    const evidence = normalized.evidence_used.length
+      ? normalized.evidence_used
+      : [{ source: "n/a", reason: "No explicit evidence mapping returned." }];
 
-    const followUpHtml = followUps.length
-      ? `
-        <section class="answer-block">
-          <h4>Suggested Follow-up Questions</h4>
-          <ul class="answer-list">
-            ${followUps.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
-          </ul>
-        </section>
-      `
-      : "";
+    const evidenceHtml = evidence
+      .map((item) => {
+        return `<li><strong>${escapeHtml(item.source)}</strong>: ${escapeHtml(item.reason)}</li>`;
+      })
+      .join("");
 
     return `
       <section class="answer-block">
-        <h4>Concise Answer</h4>
-        <p>${escapeHtml(concise)}</p>
+        <h4>Answer</h4>
+        <p>${escapeHtml(normalized.answer)}</p>
       </section>
       <section class="answer-block">
-        <h4>Evidence Bullets</h4>
+        <h4>Key Points</h4>
         <ul class="answer-list">
-          ${evidence.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+          ${keyPoints.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
         </ul>
       </section>
-      ${followUpHtml}
+      <section class="answer-block">
+        <h4>Evidence Used</h4>
+        <ul class="answer-list">${evidenceHtml}</ul>
+      </section>
+      <section class="answer-block">
+        <h4>Confidence</h4>
+        <p>${escapeHtml(normalized.confidence)}</p>
+      </section>
+      <section class="answer-block">
+        <h4>Limitations</h4>
+        <p>${escapeHtml(normalized.limitations)}</p>
+      </section>
     `;
+  }
+
+  function normalizeStructuredAnswer(value) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const payload = value;
+      const answer = typeof payload.answer === "string" ? payload.answer.trim() : "";
+      const keyPoints = Array.isArray(payload.key_points)
+        ? payload.key_points.map((item) => String(item)).filter((item) => item)
+        : [];
+      const evidenceUsed = Array.isArray(payload.evidence_used)
+        ? payload.evidence_used
+            .map((item) => {
+              if (!item || typeof item !== "object") {
+                return null;
+              }
+              const source = typeof item.source === "string" ? item.source.trim() : "n/a";
+              const reason = typeof item.reason === "string" ? item.reason.trim() : "";
+              if (!reason) {
+                return null;
+              }
+              return { source, reason };
+            })
+            .filter(Boolean)
+        : [];
+      const confidenceRaw = String(payload.confidence || "").trim().toLowerCase();
+      const confidence = ["high", "medium", "low"].includes(confidenceRaw)
+        ? confidenceRaw
+        : "medium";
+      const limitations =
+        typeof payload.limitations === "string" && payload.limitations.trim()
+          ? payload.limitations.trim()
+          : "No explicit limitations were returned.";
+
+      return {
+        answer: answer || "No answer available.",
+        key_points: keyPoints,
+        evidence_used: evidenceUsed,
+        confidence,
+        limitations,
+      };
+    }
+
+    const sections = parseStructuredAnswer(typeof value === "string" ? value : "");
+    return {
+      answer: sections.concise.join(" ").trim() || "No answer available.",
+      key_points: sections.evidence.length
+        ? sections.evidence
+        : ["No explicit evidence bullets were returned."],
+      evidence_used: sections.citations.length
+        ? sections.citations.map((citation) => ({ source: citation, reason: "Cited by response." }))
+        : [],
+      confidence: "medium",
+      limitations: "Legacy answer format returned; structured evidence mapping is limited.",
+    };
   }
 
   function parseStructuredAnswer(text) {

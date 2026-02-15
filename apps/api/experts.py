@@ -12,6 +12,7 @@ from django.db.models import Prefetch, QuerySet
 from django.utils import timezone
 from pgvector.django import CosineDistance
 
+from apps.api.query_optimizer import optimize_query
 from apps.documents.embedding_backends import EmbeddingBackendError, get_embedding_backend
 from apps.documents.models import (
     Authorship,
@@ -121,6 +122,8 @@ class ExpertRankingService:
             raise ExpertRankingError("EXPERTS_MAX_CHUNK_SCAN must be greater than 0.")
         if self._topic_target <= 0:
             raise ExpertRankingError("EXPERTS_TOPIC_DIVERSITY_TARGET must be greater than 0.")
+        self._max_ranked_experts = min(10, self._top_experts)
+        self._min_ranked_score = 0.22
 
     def rank(
         self,
@@ -140,7 +143,9 @@ class ExpertRankingService:
                 f"Invalid clearance: {clearance!r}. Allowed: {list(SecurityLevel.values)}"
             )
 
-        query_vector = self._embed_query(query_text)
+        optimized = optimize_query(query_text)
+        retrieval_query = optimized.optimized_query or optimized.normalized_query or query_text
+        query_vector = self._embed_query(retrieval_query)
         allowed_levels = _CLEARANCE_ALLOWED_LEVELS[clearance]
 
         paper_matches = self._collect_best_paper_matches(
@@ -163,13 +168,15 @@ class ExpertRankingService:
                 "experts": [],
             }
 
-        query_terms = self._tokenize(query_text)
+        query_terms = set(optimized.expanded_terms) if optimized.expanded_terms else self._tokenize(query_text)
         experts = self._build_expert_rows(
             paper_matches=paper_matches,
             query_terms=query_terms,
         )
         experts.sort(key=lambda row: row["_score"], reverse=True)
-        ranked = experts[: self._top_experts]
+        experts = self._trim_low_relevance_rows(experts)
+        ranked_limit = min(self._max_ranked_experts, len(experts))
+        ranked = experts[:ranked_limit]
 
         for row in ranked:
             row.pop("_score", None)
@@ -186,6 +193,7 @@ class ExpertRankingService:
 
         return {
             "query": query_text,
+            "optimized_query": retrieval_query,
             "clearance": clearance,
             "experts": ranked,
         }
@@ -389,13 +397,17 @@ class ExpertRankingService:
             accumulator=accumulator,
             max_stored_centrality=max_stored_centrality,
         )
+        graph_proximity = max(
+            0.0,
+            min(1.0, (0.65 * query_alignment) + (0.35 * topic_coverage)),
+        )
+        citation_authority = graph_centrality
 
         total_score = self._total_score(
             semantic_relevance=semantic_relevance,
             recency_boost=recency_boost,
-            topic_coverage=topic_coverage,
-            query_alignment=query_alignment,
-            graph_centrality=graph_centrality,
+            graph_proximity=graph_proximity,
+            citation_authority=citation_authority,
         )
 
         top_topics = [
@@ -427,6 +439,8 @@ class ExpertRankingService:
                 "recency_boost": round(recency_boost, 4),
                 "topic_coverage": round(topic_coverage, 4),
                 "query_alignment": round(query_alignment, 4),
+                "graph_proximity": round(graph_proximity, 4),
+                "citation_authority": round(citation_authority, 4),
                 "graph_centrality": round(graph_centrality, 4),
             },
             "matched_paper_count": len(accumulator.papers),
@@ -436,6 +450,8 @@ class ExpertRankingService:
                 semantic_relevance=semantic_relevance,
                 recency_boost=recency_boost,
                 query_alignment=query_alignment,
+                graph_proximity=graph_proximity,
+                citation_authority=citation_authority,
                 graph_centrality=graph_centrality,
                 matched_paper_count=len(accumulator.papers),
             ),
@@ -527,24 +543,14 @@ class ExpertRankingService:
         *,
         semantic_relevance: float,
         recency_boost: float,
-        topic_coverage: float,
-        query_alignment: float,
-        graph_centrality: float,
+        graph_proximity: float,
+        citation_authority: float,
     ) -> float:
-        if self._graph_centrality_enabled:
-            return (
-                (0.42 * semantic_relevance)
-                + (0.18 * recency_boost)
-                + (0.13 * topic_coverage)
-                + (0.12 * query_alignment)
-                + (0.15 * graph_centrality)
-            )
-
         return (
-            (0.50 * semantic_relevance)
-            + (0.20 * recency_boost)
-            + (0.15 * topic_coverage)
-            + (0.15 * query_alignment)
+            (0.58 * semantic_relevance)
+            + (0.24 * graph_proximity)
+            + (0.12 * citation_authority)
+            + (0.06 * recency_boost)
         )
 
     def _paper_recency_score(self, published_date: date | None) -> float:
@@ -564,6 +570,8 @@ class ExpertRankingService:
         semantic_relevance: float,
         recency_boost: float,
         query_alignment: float,
+        graph_proximity: float,
+        citation_authority: float,
         graph_centrality: float,
         matched_paper_count: int,
     ) -> str:
@@ -584,21 +592,30 @@ class ExpertRankingService:
         )
 
         if top_topics:
-            centrality_clause = ""
-            if graph_centrality >= 0.20:
-                centrality_clause = " and graph centrality strength"
             return (
                 f"Ranked for {semantic_label} via '{lead_paper}', "
                 f"{alignment_label}, {recency_label}, "
+                f"graph proximity {graph_proximity:.2f}, "
+                f"citation authority {citation_authority:.2f}, "
                 f"{matched_paper_count} matched papers, and coverage of topics like "
-                f"{', '.join(top_topics[:2])}"
-                f"{centrality_clause}."
+                f"{', '.join(top_topics[:2])}."
             )
 
         return (
             f"Ranked for {semantic_label} via '{lead_paper}', {alignment_label}, "
-            f"{recency_label}, and {matched_paper_count} matched papers."
+            f"{recency_label}, graph proximity {graph_proximity:.2f}, "
+            f"citation authority {citation_authority:.2f}, and {matched_paper_count} matched papers."
         )
+
+    def _trim_low_relevance_rows(self, rows: list[dict[str, object]]) -> list[dict[str, object]]:
+        if not rows:
+            return []
+        filtered = [
+            row for row in rows if float(row.get("_score", 0.0) or 0.0) >= self._min_ranked_score
+        ]
+        if filtered:
+            return filtered
+        return rows[: min(len(rows), self._max_ranked_experts)]
 
     def _save_audit(
         self,

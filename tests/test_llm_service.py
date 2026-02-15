@@ -10,15 +10,14 @@ from apps.api.llm import SYSTEM_PROMPT, LLMServiceError, OpenAIAnswerService
 def test_openai_answer_service_builds_messages_with_required_sections() -> None:
     messages = OpenAIAnswerService._build_messages(
         query="federated learning",
-        context_blocks=["[1] Paper A (paper:a): Relevant evidence."],
+        context_blocks=['{"source":"paper:a","chunk_text":"Relevant evidence."}'],
     )
 
     assert messages[0]["role"] == "system"
     assert messages[0]["content"] == SYSTEM_PROMPT
-    assert "1. Concise answer" in messages[1]["content"]
-    assert "2. Evidence bullets" in messages[1]["content"]
-    assert "3. Citations" in messages[1]["content"]
-    assert "4. Suggested follow-up questions" in messages[1]["content"]
+    assert "REQUIRED OUTPUT JSON" in messages[1]["content"]
+    assert '"answer"' in messages[1]["content"]
+    assert '"confidence"' in messages[1]["content"]
 
 
 def test_openai_answer_service_retries_on_timeout_and_then_succeeds(monkeypatch) -> None:
@@ -35,14 +34,9 @@ def test_openai_answer_service_retries_on_timeout_and_then_succeeds(monkeypatch)
                     SimpleNamespace(
                         message=SimpleNamespace(
                             content=(
-                                "1. Concise answer\n"
-                                "Done\n\n"
-                                "2. Evidence bullets\n"
-                                "- [1]\n\n"
-                                "3. Citations\n"
-                                "- [1]\n\n"
-                                "4. Suggested follow-up questions\n"
-                                "- next"
+                                '{"answer":"Done","key_points":["point"],'
+                                '"evidence_used":[{"source":"[1]","reason":"support"}],'
+                                '"confidence":"medium","limitations":"none"}'
                             )
                         )
                     )
@@ -67,7 +61,7 @@ def test_openai_answer_service_retries_on_timeout_and_then_succeeds(monkeypatch)
         context_blocks=["[1] Context block"],
     )
 
-    assert "1. Concise answer" in answer
+    assert '"answer":"Done"' in answer
     assert completions.calls == 2
 
 

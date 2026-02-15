@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from pgvector.django import CosineDistance
 
 from apps.api.experts import ExpertRankingService
 from apps.api.llm import LLMServiceError, OpenAIAnswerService
+from apps.api.query_optimizer import optimize_query
 from apps.documents.embedding_backends import EmbeddingBackendError, get_embedding_backend
 from apps.documents.models import Embedding, SearchAudit, SecurityLevel
 
@@ -87,7 +89,9 @@ class AskService:
                 f"Invalid clearance: {clearance!r}. Allowed: {list(SecurityLevel.values)}"
             )
 
-        query_vector = self._embed_query(query_text)
+        optimized = optimize_query(query_text)
+        retrieval_query = optimized.optimized_query or optimized.normalized_query or query_text
+        query_vector = self._embed_query(retrieval_query)
         retrieved = self._retrieve_top_chunks(query_vector=query_vector)
 
         citations, allowed_context, redacted_count = self._build_citations_and_context(
@@ -97,12 +101,18 @@ class AskService:
 
         if settings.OPENAI_API_KEY and allowed_context:
             try:
-                answer = self._generate_openai_answer(query=query_text, context=allowed_context)
+                answer_payload = self._generate_openai_answer(
+                    query=query_text,
+                    context=allowed_context,
+                )
             except AskBackendError:
                 logger.exception("OpenAI answer generation failed, using deterministic fallback.")
-                answer = self._build_extractive_answer(query=query_text, context=allowed_context)
+                answer_payload = self._build_extractive_answer(
+                    query=query_text,
+                    context=allowed_context,
+                )
         else:
-            answer = self._build_extractive_answer(query=query_text, context=allowed_context)
+            answer_payload = self._build_extractive_answer(query=query_text, context=allowed_context)
 
         experts_payload = ExpertRankingService(top_experts=5).rank(
             query=query_text,
@@ -123,7 +133,9 @@ class AskService:
         )
 
         return {
-            "answer": answer,
+            "answer": answer_payload["answer"],
+            "answer_payload": answer_payload,
+            "optimized_query": retrieval_query,
             "citations": citations,
             "recommended_experts": experts_payload["experts"],
             "redacted_count": redacted_count,
@@ -274,11 +286,17 @@ class AskService:
         *,
         query: str,
         context: list[tuple[int, RetrievedChunk]],
-    ) -> str:
-        context_blocks = [
-            f"[{citation_id}] {chunk.paper_title} ({chunk.paper_external_id}): {chunk.text_chunk}"
+    ) -> dict[str, object]:
+        context_records = [
+            {
+                "citation_id": citation_id,
+                "source": chunk.paper_external_id,
+                "paper_title": chunk.paper_title,
+                "chunk_text": chunk.text_chunk,
+            }
             for citation_id, chunk in context
         ]
+        context_blocks = [json.dumps(record, ensure_ascii=True) for record in context_records]
 
         try:
             llm_service = self._llm_service or OpenAIAnswerService.from_settings()
@@ -287,27 +305,47 @@ class AskService:
             logger.warning("OpenAI generation failed with code=%s.", exc.details.code)
             raise AskBackendError(exc.details.message) from exc
 
-        return self._ensure_structured_answer(raw_answer, context=context)
+        parsed = self._parse_llm_json(raw_answer)
+        if parsed is None:
+            try:
+                corrected = llm_service.generate_answer(
+                    query=query,
+                    context_blocks=context_blocks,
+                    correction_prompt=(
+                        "Your previous answer was invalid JSON. Return ONLY valid JSON with keys: "
+                        "answer, key_points, evidence_used, confidence, limitations."
+                    ),
+                )
+            except LLMServiceError as exc:
+                logger.warning("OpenAI correction request failed with code=%s.", exc.details.code)
+                raise AskBackendError(exc.details.message) from exc
+            parsed = self._parse_llm_json(corrected)
+
+        if parsed is None:
+            raise AskBackendError("LLM did not return valid JSON output.")
+
+        return self._normalize_answer_payload(parsed, context=context)
 
     def _build_extractive_answer(
         self,
         *,
         query: str,
         context: list[tuple[int, RetrievedChunk]],
-    ) -> str:
+    ) -> dict[str, object]:
         if not context:
-            return self._format_structured_answer(
-                concise_answer=(
+            return {
+                "answer": (
                     "Evidence is weak: no accessible chunks were found for this query at your "
                     "current clearance level."
                 ),
-                evidence_bullets=["No accessible evidence could be retrieved."],
-                citations=[],
-                follow_ups=[
-                    "Can you broaden the query terms?",
-                    "Can you request a higher clearance level for more evidence?",
-                ],
-            )
+                "key_points": ["No accessible evidence could be retrieved."],
+                "evidence_used": [],
+                "confidence": "low",
+                "limitations": (
+                    "No accessible chunks were available, so the summary could not reference "
+                    "specific source passages."
+                ),
+            }
 
         query_terms = self._tokenize(query)
         candidates: list[tuple[float, int, int, str]] = []
@@ -340,9 +378,6 @@ class AskService:
             snippet = " ".join(chunk.text_chunk.split())[:220].rstrip()
             selected.append(f"{snippet} [{citation_id}]")
 
-        citation_items = [
-            f"[{citation_id}] {chunk.paper_external_id}" for citation_id, chunk in context
-        ]
         primary_sentence = re.sub(r"\s*\[\d+\]\s*$", "", selected[0]).strip()
         if primary_sentence:
             concise = (
@@ -354,15 +389,25 @@ class AskService:
         if len(context) <= 1:
             concise = f"Evidence is limited. {concise}"
 
-        return self._format_structured_answer(
-            concise_answer=concise,
-            evidence_bullets=selected,
-            citations=citation_items,
-            follow_ups=[
-                "Which matched papers are most recent?",
-                "Which recommended expert should I contact first?",
-            ],
-        )
+        evidence_used = []
+        for citation_id, chunk in context:
+            evidence_used.append(
+                {
+                    "source": f"[{citation_id}] {chunk.paper_external_id}",
+                    "reason": "Top similarity chunk selected for extractive grounding.",
+                }
+            )
+
+        return {
+            "answer": concise,
+            "key_points": selected,
+            "evidence_used": evidence_used,
+            "confidence": "medium" if len(context) >= 2 else "low",
+            "limitations": (
+                "Deterministic extractive mode was used, so output quality is bounded by "
+                "retrieved chunk coverage."
+            ),
+        }
 
     @staticmethod
     def _split_sentences(text: str) -> list[str]:
@@ -376,63 +421,90 @@ class AskService:
         return {token for token in re.findall(r"[a-zA-Z0-9]+", text.lower()) if len(token) >= 3}
 
     @staticmethod
-    def _format_structured_answer(
-        *,
-        concise_answer: str,
-        evidence_bullets: list[str],
-        citations: list[str],
-        follow_ups: list[str],
-    ) -> str:
-        evidence_lines = [f"- {line}" for line in evidence_bullets] or ["- No evidence available."]
-        citation_lines = [f"- {line}" for line in citations] or ["- None"]
-        follow_up_lines = [f"- {line}" for line in follow_ups] or ["- None"]
-        return "\n".join(
-            [
-                "1. Concise answer",
-                concise_answer.strip(),
-                "",
-                "2. Evidence bullets",
-                *evidence_lines,
-                "",
-                "3. Citations",
-                *citation_lines,
-                "",
-                "4. Suggested follow-up questions",
-                *follow_up_lines,
-            ]
-        )
+    def _parse_llm_json(raw_answer: str) -> dict[str, object] | None:
+        candidate = (raw_answer or "").strip()
+        if not candidate:
+            return None
 
-    def _ensure_structured_answer(
-        self,
-        answer: str,
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", candidate, flags=re.DOTALL)
+            if not match:
+                return None
+            try:
+                parsed = json.loads(match.group(0))
+            except json.JSONDecodeError:
+                return None
+
+        if not isinstance(parsed, dict):
+            return None
+        return parsed
+
+    @staticmethod
+    def _normalize_answer_payload(
+        payload: dict[str, object],
         *,
         context: list[tuple[int, RetrievedChunk]],
-    ) -> str:
-        normalized = answer.strip()
-        lowered = normalized.lower()
-        required_sections = (
-            "1. concise answer",
-            "2. evidence bullets",
-            "3. citations",
-            "4. suggested follow-up questions",
+    ) -> dict[str, object]:
+        answer_value = payload.get("answer")
+        answer = (
+            str(answer_value).strip()
+            if isinstance(answer_value, str) and answer_value.strip()
+            else "Evidence is weak. No concise answer was returned."
         )
-        if all(section in lowered for section in required_sections):
-            return normalized
 
-        citation_items = [
-            f"[{citation_id}] {chunk.paper_external_id}" for citation_id, chunk in context
-        ]
-        return self._format_structured_answer(
-            concise_answer=normalized or "Evidence is weak. No concise answer was returned.",
-            evidence_bullets=[
-                "The language model response was normalized into the required format."
-            ],
-            citations=citation_items,
-            follow_ups=[
-                "Can you narrow the query to a specific method or domain?",
-                "Do you want only recent papers from the last 2 years?",
-            ],
+        raw_key_points = payload.get("key_points")
+        key_points = (
+            [str(item).strip() for item in raw_key_points if str(item).strip()]
+            if isinstance(raw_key_points, list)
+            else []
         )
+        if not key_points:
+            key_points = ["No key points were returned."]
+
+        raw_evidence = payload.get("evidence_used")
+        evidence_used: list[dict[str, str]] = []
+        if isinstance(raw_evidence, list):
+            for item in raw_evidence:
+                if not isinstance(item, dict):
+                    continue
+                source = str(item.get("source", "")).strip()
+                reason = str(item.get("reason", "")).strip()
+                if not reason:
+                    continue
+                evidence_used.append(
+                    {
+                        "source": source or "unknown source",
+                        "reason": reason,
+                    }
+                )
+        if not evidence_used:
+            evidence_used = [
+                {
+                    "source": f"[{citation_id}] {chunk.paper_external_id}",
+                    "reason": "Retrieved as accessible supporting evidence.",
+                }
+                for citation_id, chunk in context[:2]
+            ]
+
+        confidence_raw = str(payload.get("confidence", "")).strip().lower()
+        confidence = confidence_raw if confidence_raw in {"high", "medium", "low"} else "medium"
+
+        limitations_value = payload.get("limitations")
+        limitations = (
+            str(limitations_value).strip()
+            if isinstance(limitations_value, str) and limitations_value.strip()
+            else "Response quality depends on the retrieved chunk coverage and ranking quality."
+        )
+
+        return {
+            "answer": answer,
+            "key_points": key_points,
+            "evidence_used": evidence_used,
+            "confidence": confidence,
+            "limitations": limitations,
+        }
 
     def _save_audit(
         self,

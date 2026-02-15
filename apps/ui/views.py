@@ -20,7 +20,7 @@ from apps.common.demo_auth import (
     normalize_role,
     set_session_identity,
 )
-from apps.documents.models import Author, Embedding, Paper, SecurityLevel, Topic
+from apps.documents.models import Author, Paper, SecurityLevel
 from apps.documents.verification import DataPipelineVerifier
 
 TAB_PAPERS = "papers"
@@ -45,7 +45,7 @@ LANDING_TUTORIAL_STEPS = (
     "Open Graph to explain relationships between authors, papers, and topics.",
     "Use Ask for a grounded answer with citations.",
 )
-LANDING_DEMO_FLOW = (
+LANDING_TEST_MODE_STEPS = (
     {
         "title": "Start with Papers",
         "description": "Run one telecom query and validate relevance, snippet quality, and timing.",
@@ -63,35 +63,23 @@ LANDING_DEMO_FLOW = (
         "description": "Generate a concise answer with citations and recommended experts.",
     },
 )
-LANDING_CAPABILITIES = (
-    {
-        "title": "Access-Aware Retrieval",
-        "description": (
-            "All results are filtered by clearance (PUBLIC/INTERNAL/CONFIDENTIAL) before "
-            "response payloads are built."
-        ),
-    },
-    {
-        "title": "Expert Ranking",
-        "description": (
-            "Experts are scored by semantic relevance, topic coverage, recency, and optional "
-            "graph centrality."
-        ),
-    },
-    {
-        "title": "Graph-Backed Explainability",
-        "description": (
-            "The graph tab surfaces Author-Paper-Topic paths so rankings are explainable to "
-            "recruiters and technical leads."
-        ),
-    },
-    {
-        "title": "Grounded Ask",
-        "description": (
-            "Ask returns evidence-backed answers with citations and recommended experts from "
-            "retrieved context."
-        ),
-    },
+LANDING_SYSTEM_CAPABILITIES = (
+    "Finds relevant research papers",
+    "Identifies domain experts",
+    "Explains relationships between concepts and authors",
+    "Surfaces non-obvious connections",
+)
+LANDING_CURRENT_CHALLENGES = (
+    "Ranking tradeoffs between semantic vs graph relevance",
+    "External data inconsistency",
+    "Static ranking weights",
+    "Limited contextual expansion depth",
+)
+LANDING_PLANNED_IMPROVEMENTS = (
+    "Adaptive ranking",
+    "Feedback learning",
+    "Multi-hop reasoning",
+    "Temporal weighting",
 )
 
 
@@ -118,9 +106,6 @@ def demo_login(request: HttpRequest) -> HttpResponse:
 
 @require_GET
 def landing(request: HttpRequest) -> HttpResponse:
-    session_role = get_session_role(request)
-    session_name = get_session_name(request)
-
     featured_works = list(
         Paper.objects.filter(security_level=SecurityLevel.PUBLIC)
         .order_by("-published_date", "-id")
@@ -132,27 +117,16 @@ def landing(request: HttpRequest) -> HttpResponse:
         .order_by("-paper_count", "name")
         .values("id", "name", "institution_name", "paper_count")[:8]
     )
-    metrics = {
-        "papers": Paper.objects.count(),
-        "experts": Author.objects.count(),
-        "topics": Topic.objects.count(),
-        "chunks": Embedding.objects.count(),
-    }
 
     context: dict[str, Any] = {
-        "session_role": session_role,
-        "session_name": session_name,
-        "llm_enabled": bool(settings.OPENAI_API_KEY),
-        "openalex_live_fetch_enabled": bool(
-            settings.OPENALEX_LIVE_FETCH and bool(settings.OPENALEX_API_KEY)
-        ),
         "example_queries": list(DEFAULT_EXAMPLE_QUERIES),
         "tutorial_steps": list(LANDING_TUTORIAL_STEPS),
-        "demo_flow": list(LANDING_DEMO_FLOW),
-        "capabilities": list(LANDING_CAPABILITIES),
+        "test_mode_steps": list(LANDING_TEST_MODE_STEPS),
+        "system_capabilities": list(LANDING_SYSTEM_CAPABILITIES),
+        "current_challenges": list(LANDING_CURRENT_CHALLENGES),
+        "planned_improvements": list(LANDING_PLANNED_IMPROVEMENTS),
         "featured_works": featured_works,
         "featured_experts": featured_experts,
-        "metrics": metrics,
     }
     return render(request, "ui/landing.html", context)
 

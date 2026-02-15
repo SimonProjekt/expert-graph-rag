@@ -11,14 +11,7 @@
   <main class="page">
     <header class="hero">
       <div class="hero-top">
-        <div class="session-meta">
-          <span>Role: <strong>{{ session_role }}</strong></span>
-          {% if session_name %}
-            <span>User: <strong>{{ session_name }}</strong></span>
-          {% endif %}
-        </div>
         <div class="session-actions">
-          <a class="button-link" href="{% url 'demo_login' %}?next={{ request.get_full_path|urlencode }}">Demo login</a>
           <form method="post" action="{% url 'demo_logout' %}">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -70,7 +63,7 @@
           {% for collaborator in collaborators %}
             <li>
               <a href="{% url 'ui_expert_profile' collaborator.id %}?clearance={{ clearance }}&query={{ query|urlencode }}">{{ collaborator.name }}</a>
-              <span class="muted">{{ collaborator.institution }} · {{ collaborator.paper_count }} shared paper(s)</span>
+              <span class="muted">{{ collaborator.institution }}</span>
             </li>
           {% endfor %}
         </ul>

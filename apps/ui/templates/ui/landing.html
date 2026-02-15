@@ -4,80 +4,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Expert Graph RAG - Recruiter Demo</title>
+  <title>Expert Graph RAG</title>
   <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
 </head>
 <body>
   <main class="page landing-page">
     <header class="landing-hero panel">
-      <p class="kicker">Ericsson Interview MVP</p>
       <h1>Expert Graph RAG</h1>
       <p class="landing-subtitle">
-        A recruiter-grade demo for discovering telecom experts and research papers using hybrid
-        semantic retrieval plus knowledge-graph reasoning.
+        Discovery Telecom Experts and Research Papers Using Hybrid Semantic Retrieval plus Knowledge Graph Reasoning.
+      </p>
+      <p class="landing-subtitle">
+        This project explores how internal knowledge and expertise inside large organizations can be discovered using a combination of semantic search and graph-based reasoning. Instead of returning keyword matches, the system retrieves relevant research, identifies domain experts, and explains relationships between them.
+      </p>
+      <p class="landing-subtitle">
+        The goal is to improve knowledge discovery, expert identification, and technical insight navigation across complex information environments.
       </p>
 
-      <div class="landing-metrics" aria-label="Current dataset metrics">
-        <article class="metric-card">
-          <span class="metric-value">{{ metrics.papers }}</span>
-          <span class="metric-label">Papers</span>
-        </article>
-        <article class="metric-card">
-          <span class="metric-value">{{ metrics.experts }}</span>
-          <span class="metric-label">Experts</span>
-        </article>
-        <article class="metric-card">
-          <span class="metric-value">{{ metrics.topics }}</span>
-          <span class="metric-label">Topics</span>
-        </article>
-        <article class="metric-card">
-          <span class="metric-value">{{ metrics.chunks }}</span>
-          <span class="metric-label">Embeddings</span>
-        </article>
-      </div>
-
-      <div class="mode-badges" aria-label="Runtime status">
-        {% if llm_enabled %}
-          <span class="badge status-ok">LLM Enabled</span>
-        {% else %}
-          <span class="badge status-warn">Demo Mode (LLM Optional)</span>
-        {% endif %}
-        {% if openalex_live_fetch_enabled %}
-          <span class="badge status-ok">Live OpenAlex enabled</span>
-        {% else %}
-          <span class="badge badge-outline">Local seed mode</span>
-        {% endif %}
-        <span class="badge badge-outline">Role: {{ session_role }}</span>
-        {% if session_name %}
-          <span class="badge badge-outline">User: {{ session_name }}</span>
-        {% endif %}
-      </div>
-
       <div class="landing-actions">
-        <a class="primary-button landing-cta" href="/demo/">Try the Demo</a>
-        <a class="button-link" href="{% url 'demo_login' %}?next=/demo/">Set Demo Role</a>
+        <a class="primary-button landing-cta" href="/demo/">Open Workspace</a>
       </div>
     </header>
 
     <section class="panel">
-      <h2>What This Project Can Do</h2>
-      <div class="cards landing-capabilities">
-        {% for capability in capabilities %}
-          <article class="card">
-            <h3>{{ capability.title }}</h3>
-            <p>{{ capability.description }}</p>
-          </article>
-        {% endfor %}
+      <h2>What this system does</h2>
+      <div class="cards landing-capabilities three-col">
+        <article class="card">
+          <h3>Capabilities</h3>
+          <ul class="list compact-list">
+            {% for item in system_capabilities %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Current Challenges</h3>
+          <ul class="list compact-list">
+            {% for item in current_challenges %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Planned Improvements</h3>
+          <ul class="list compact-list">
+            {% for item in planned_improvements %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        </article>
       </div>
-    </section>
-
-    <section class="panel">
-      <h2>2-Minute Tutorial</h2>
-      <ol class="landing-steps">
-        {% for step in tutorial_steps %}
-          <li>{{ step }}</li>
-        {% endfor %}
-      </ol>
     </section>
 
     <section class="panel">
@@ -90,9 +66,18 @@
     </section>
 
     <section class="panel">
-      <h2>Demo Flow for Recruiters</h2>
+      <h2>2-Minute Tutorial</h2>
+      <ol class="landing-steps">
+        {% for step in tutorial_steps %}
+          <li>{{ step }}</li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>Test Mode</h2>
       <div class="cards landing-capabilities">
-        {% for step in demo_flow %}
+        {% for step in test_mode_steps %}
           <article class="card">
             <h3>{{ step.title }}</h3>
             <p>{{ step.description }}</p>
@@ -103,7 +88,7 @@
 
     <section class="panel">
       <h2>Try These Telecom Queries</h2>
-      <p class="muted">Click any query to jump directly into the interactive demo.</p>
+      <p class="muted">Click any query to jump directly into the interactive workspace.</p>
       <div class="chips">
         {% for sample in example_queries %}
           <a class="chip" href="/demo/?query={{ sample|urlencode }}&tab=papers&clearance=PUBLIC">{{ sample }}</a>
@@ -132,7 +117,7 @@
           {% for expert in featured_experts %}
             <li>
               <a href="/experts/{{ expert.id }}/?clearance=PUBLIC">{{ expert.name }}</a>
-              <span class="muted">{{ expert.institution_name }} · {{ expert.paper_count }} papers</span>
+              <span class="muted">{{ expert.institution_name }}</span>
             </li>
           {% empty %}
             <li>No seeded experts yet. Run <code>make demo_ready</code>.</li>

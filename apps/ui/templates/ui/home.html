@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Expert Graph RAG Demo</title>
+  <title>Expert Graph RAG</title>
   <link rel="stylesheet" href="{% static 'ui/styles.css' %}">
   <script src="{% static 'ui/vendor/vis-network.min.js' %}" defer></script>
   <script src="{% static 'ui/dashboard.js' %}" defer></script>
@@ -25,23 +25,7 @@
         <a href="#panel-ask">Ask</a>
       </nav>
 
-      <div class="mode-badges" aria-label="Demo Mode Status">
-        {% if llm_enabled %}
-          <span class="badge status-ok">LLM Enabled</span>
-        {% else %}
-          <span class="badge status-warn">LLM Not Configured</span>
-        {% endif %}
-        {% if openalex_live_fetch_enabled %}
-          <span class="badge status-ok">Live OpenAlex enabled</span>
-        {% else %}
-          <span class="badge badge-outline">Local results only</span>
-        {% endif %}
-        <span class="badge badge-outline" id="clearance-badge">Clearance: {{ clearance }}</span>
-        <span class="badge badge-outline">Role: {{ session_role }}</span>
-      </div>
-
       <div class="session-actions">
-        <a class="button-link" href="{% url 'demo_login' %}?next={{ request.get_full_path|urlencode }}">Change demo role</a>
         <form method="post" action="{% url 'demo_logout' %}">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -183,7 +167,7 @@
                 {% for expert in top_experts %}
                   <li>
                     <a href="{% url 'ui_expert_profile' expert.id %}?clearance={{ clearance }}&query={{ query|urlencode }}">{{ expert.name }}</a>
-                    <span class="muted">{{ expert.institution_name }} · {{ expert.paper_count }} papers</span>
+                    <span class="muted">{{ expert.institution_name }}</span>
                   </li>
                 {% empty %}
                   <li>No experts yet. Seed data to populate expert cards.</li>
@@ -196,7 +180,7 @@
         <section id="panel-papers" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-papers" hidden>
           <div class="panel-header">
             <h2>Papers</h2>
-            <p class="muted" id="papers-meta">No results yet</p>
+            <p class="muted" id="papers-meta">Sorted by relevance</p>
           </div>
 
           <div id="papers-loading" class="skeleton-grid" hidden>
@@ -213,7 +197,7 @@
         <section id="panel-experts" class="panel tab-panel" role="tabpanel" tabindex="0" aria-labelledby="tab-experts" hidden>
           <div class="panel-header">
             <h2>Experts</h2>
-            <p class="muted" id="experts-meta">No ranked experts yet</p>
+            <p class="muted" id="experts-meta">Ranked by semantic and graph signals</p>
           </div>
           <p class="muted experts-intro">
             Ranked by semantic relevance, query alignment, recency, topic coverage, and graph centrality.

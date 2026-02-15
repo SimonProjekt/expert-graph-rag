@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import random
 import time
@@ -10,7 +11,10 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = "Research assistant for academic graphs and recruiter analysis."
+SYSTEM_PROMPT = (
+    "You are a technical research assistant. Only use provided evidence. "
+    "If insufficient evidence, say so."
+)
 _DEFAULT_TIMEOUT_SECONDS = 30.0
 _DEFAULT_MAX_RETRIES = 3
 _DEFAULT_BACKOFF_SECONDS = 1.0
@@ -103,7 +107,13 @@ class OpenAIAnswerService:
             stream=True,
         )
 
-    def generate_answer(self, *, query: str, context_blocks: list[str]) -> str:
+    def generate_answer(
+        self,
+        *,
+        query: str,
+        context_blocks: list[str],
+        correction_prompt: str | None = None,
+    ) -> str:
         if not context_blocks:
             raise LLMServiceError(
                 LLMErrorDetails(
@@ -113,7 +123,11 @@ class OpenAIAnswerService:
                 )
             )
 
-        messages = self._build_messages(query=query, context_blocks=context_blocks)
+        messages = self._build_messages(
+            query=query,
+            context_blocks=context_blocks,
+            correction_prompt=correction_prompt,
+        )
         client = self._build_client()
 
         for attempt in range(self._max_retries + 1):
@@ -227,21 +241,46 @@ class OpenAIAnswerService:
         )
 
     @staticmethod
-    def _build_messages(*, query: str, context_blocks: list[str]) -> list[dict[str, str]]:
-        context_text = "\n\n".join(context_blocks)
+    def _build_messages(
+        *,
+        query: str,
+        context_blocks: list[str],
+        correction_prompt: str | None = None,
+    ) -> list[dict[str, str]]:
+        context_payload: list[dict[str, str]] = []
+        for index, block in enumerate(context_blocks, start=1):
+            parsed_block: dict[str, str] | None = None
+            if isinstance(block, str):
+                try:
+                    candidate = json.loads(block)
+                    if isinstance(candidate, dict):
+                        parsed_block = {str(key): str(value) for key, value in candidate.items()}
+                except json.JSONDecodeError:
+                    parsed_block = None
+            if parsed_block is not None:
+                context_payload.append(parsed_block)
+                continue
+            context_payload.append({"id": str(index), "chunk": str(block)})
+
         user_prompt = (
-            "Answer ONLY from the provided context.\n"
-            "Format your answer with these exact sections:\n"
-            "1. Concise answer\n"
-            "2. Evidence bullets\n"
-            "3. Citations\n"
-            "4. Suggested follow-up questions\n"
-            "If evidence is weak, explicitly say so in section 1.\n"
-            "Use citation markers like [1], [2] that match the context block ids.\n\n"
-            f"Question: {query}\n\n"
-            "Context:\n"
-            f"{context_text}"
+            "USER INPUT:\n"
+            f"Question: {query}\n"
+            "Retrieved context (JSON array of chunks):\n"
+            f"{json.dumps(context_payload, ensure_ascii=True)}\n\n"
+            "REQUIRED OUTPUT JSON:\n"
+            '{\n'
+            '  "answer": "...",\n'
+            '  "key_points": ["...", "..."],\n'
+            '  "evidence_used": [\n'
+            '    {"source": "...", "reason": "..."}\n'
+            "  ],\n"
+            '  "confidence": "high | medium | low",\n'
+            '  "limitations": "..."\n'
+            "}\n"
+            "Rules: Use only provided evidence, do not hallucinate, and output valid JSON only."
         )
+        if correction_prompt:
+            user_prompt = f"{user_prompt}\n\nCorrection: {correction_prompt}"
         return [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
