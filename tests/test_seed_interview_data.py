@@ -56,5 +56,5 @@ def test_seed_interview_data_runs_verify_by_default() -> None:
 
     assert call(
         "verify_data_pipeline",
-        query="5G RAN optimization with AI scheduling",
+        query="federated learning for RAN optimization in 5G",
     ) in cmd_mock.call_args_list

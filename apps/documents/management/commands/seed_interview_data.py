@@ -7,22 +7,22 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
 DEMO_QUERIES = (
-    "5G RAN optimization with AI scheduling",
-    "network slicing orchestration reliability",
-    "O-RAN xApp policy optimization",
-    "federated learning for telecom networks",
-    "core network anomaly detection",
-    "energy efficient base station control",
+    "federated learning for RAN optimization in 5G",
+    "network slicing reliability in 5G core",
+    "O-RAN xApp policy optimization with reinforcement learning",
+    "core network anomaly detection with graph neural networks",
+    "energy efficient base station sleep control",
+    "closed-loop RAN scheduling with multi-agent AI",
+    "knowledge graph retrieval for telecom incident triage",
+    "open RAN multi-vendor orchestration reliability",
     "near-real-time RIC optimization for massive MIMO",
-    "telecom digital twins for radio resource management",
-    "self-healing mobile network fault prediction",
     "private 5G industrial campus network automation",
 )
 
 
 class Command(BaseCommand):
     help = (
-        "Seed interview-ready telecom demo data: local fixture + optional multi-query OpenAlex "
+        "Seed telecom demo data: local fixture + optional multi-query OpenAlex "
         "ingestion + embedding + graph sync."
     )
 
@@ -30,14 +30,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--works-per-query",
             type=int,
-            default=80,
-            help="Target works per OpenAlex query when API key is configured (default: 80).",
+            default=120,
+            help="Target works per OpenAlex query when API key is configured (default: 120).",
         )
         parser.add_argument(
             "--authors-per-query",
             type=int,
-            default=40,
-            help="Target authors per OpenAlex query when API key is configured (default: 40).",
+            default=60,
+            help="Target authors per OpenAlex query when API key is configured (default: 60).",
         )
         parser.add_argument(
             "--years",
@@ -133,7 +133,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "Interview data seed complete. Open /demo/ and try telecom queries "
+                "Telecom demo seed complete. Open /demo/ and try telecom queries "
                 "from the left panel."
             )
         )

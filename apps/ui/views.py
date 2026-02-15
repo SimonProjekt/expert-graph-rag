@@ -29,14 +29,14 @@ TAB_GRAPH = "graph"
 TAB_ASK = "ask"
 VALID_TABS = {TAB_PAPERS, TAB_EXPERTS, TAB_GRAPH, TAB_ASK}
 DEFAULT_EXAMPLE_QUERIES = (
-    "5G RAN optimization with AI scheduling",
-    "network slicing orchestration reliability",
-    "O-RAN xApp policy optimization",
-    "federated learning for telecom networks",
-    "core network anomaly detection",
-    "energy efficient base station control",
-    "near-real-time RIC optimization for massive MIMO",
-    "telecom digital twins for radio resource management",
+    "federated learning for RAN optimization in 5G",
+    "network slicing reliability in 5G core",
+    "O-RAN xApp policy optimization with reinforcement learning",
+    "core network anomaly detection with graph neural networks",
+    "energy efficient base station sleep control",
+    "closed-loop RAN scheduling with multi-agent AI",
+    "knowledge graph retrieval for telecom incident triage",
+    "open RAN multi-vendor orchestration reliability",
 )
 LANDING_TUTORIAL_STEPS = (
     "Select a telecom-focused query from the examples.",

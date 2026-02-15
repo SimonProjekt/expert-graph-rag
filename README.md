@@ -1,4 +1,4 @@
-# SignalGraph AI (`expert-graph-rag`)
+# Expert Finder (`expert-graph-rag`)
 
 Knowledge discovery demo built with Django + DRF + Postgres/pgvector + Neo4j + Redis/Celery.
 
@@ -192,19 +192,19 @@ docker compose exec web python manage.py stats_openalex
 
 ## Example Queries
 
-- `5G RAN optimization with AI scheduling`
-- `network slicing orchestration reliability`
-- `O-RAN xApp policy optimization`
-- `federated learning for telecom networks`
-- `core network anomaly detection`
-- `energy efficient base station control`
-- `near-real-time RIC optimization for massive MIMO`
-- `telecom digital twins for radio resource management`
+- `federated learning for RAN optimization in 5G`
+- `network slicing reliability in 5G core`
+- `O-RAN xApp policy optimization with reinforcement learning`
+- `core network anomaly detection with graph neural networks`
+- `energy efficient base station sleep control`
+- `closed-loop RAN scheduling with multi-agent AI`
+- `knowledge graph retrieval for telecom incident triage`
+- `open RAN multi-vendor orchestration reliability`
 
 ## 2-Minute Demo Flow
 
-1. Open `/` and click **Open Workspace**.
-2. Run `5G RAN optimization with AI scheduling` in the Papers tab.
+1. Open `/` and click **Try the Demo**.
+2. Run `federated learning for RAN optimization in 5G` in the Papers tab.
 3. Switch to Experts and explain score breakdown + why-ranked text.
 4. Switch to Graph to show Author-Paper-Topic paths.
 5. Ask: `Who are the best experts for O-RAN xApp policy optimization?` and read citations.

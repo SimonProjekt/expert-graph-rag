@@ -21,7 +21,7 @@ from apps.documents.services import (
 from apps.graphsync.services import GraphSyncError, GraphSyncService
 
 DEFAULT_TOPIC_QUERIES = {
-    "telecom": "telecom RAN optimization",
+    "telecom": "5G ORAN radio access network optimization and network slicing",
     "rag": "retrieval augmented generation",
     "knowledge-graph": "knowledge graph expert discovery",
 }

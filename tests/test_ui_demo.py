@@ -26,10 +26,10 @@ def test_ui_routes_smoke(client) -> None:
     landing_content = landing_response.content.decode("utf-8")
     home_content = home_response.content.decode("utf-8")
     assert "What this system does" in landing_content
-    assert "Open Workspace" in landing_content
+    assert "Try the Demo" in landing_content
     assert "Set Demo Role" not in landing_content
     assert "LLM Enabled" not in landing_content
-    assert "SignalGraph AI" in home_content
+    assert "Expert Finder" in home_content
     assert "Try These Queries" in home_content
     assert "Query expansion depth" in home_content
     assert "Path-only focus mode" in home_content
