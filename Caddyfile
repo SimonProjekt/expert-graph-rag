@@ -5,7 +5,7 @@
 {$DEMO_DOMAIN} {
 	encode zstd gzip
 
-	# Frontend app route.
+	# Optional legacy frontend route.
 	handle_path /app* {
 		root * /srv/frontend
 		try_files {path} /index.html
@@ -22,7 +22,7 @@
 	#	{$BASIC_AUTH_USER} {$BASIC_AUTH_PASSWORD_HASH}
 	# }
 
-	@backend path /api/* /healthz /health /admin* /debug/*
+	@backend path /api/* /healthz /health /admin* /debug/* /demo* /experts/*
 	handle @backend {
 		reverse_proxy web:8000
 	}
@@ -32,9 +32,8 @@
 		file_server
 	}
 
-	# Lovable/Vite builds often reference root-relative assets (e.g. /assets/*).
-	# Serve them directly so /app can render without rewriting the generated bundle.
-	@frontend_assets path /assets/* /favicon.ico /robots.txt /manifest.json /site.webmanifest /placeholder.svg
+	# Lovable/Vite builds use root-relative assets.
+	@frontend_assets path /assets/* /favicon.ico /robots.txt /manifest.json /site.webmanifest /placeholder.svg /stitch-screens/*
 	handle @frontend_assets {
 		root * /srv/frontend
 		file_server
@@ -49,7 +48,10 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 
+	# Default route: serve frontend directly on root domain.
 	handle {
-		reverse_proxy web:8000
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
 	}
 }
