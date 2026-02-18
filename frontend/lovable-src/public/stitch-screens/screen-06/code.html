@@ -46,6 +46,13 @@
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-white overflow-x-hidden">
+<div class="fixed right-3 top-3 z-[9999] flex gap-2 rounded bg-black/70 px-2 py-1 text-[11px] text-white backdrop-blur">
+<a class="rounded px-2 py-1 hover:bg-white/20" href="/">Home</a>
+<a class="rounded px-2 py-1 hover:bg-white/20" href="/papers">Papers</a>
+<a class="rounded px-2 py-1 hover:bg-white/20" href="/experts">Experts</a>
+<a class="rounded px-2 py-1 hover:bg-white/20" href="/graph">Graph</a>
+<a class="rounded px-2 py-1 hover:bg-white/20" href="/ask">Ask</a>
+</div>
 <div class="flex h-screen w-full overflow-hidden">
 <!-- Side Navigation -->
 <div class="hidden md:flex w-72 flex-col border-r border-border-dark bg-[#111722]">
@@ -61,19 +68,19 @@
 </div>
 </div>
 <nav class="flex flex-col gap-1">
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#92a4c9] hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#92a4c9] hover:bg-surface-dark hover:text-white transition-colors group" href="/">
 <span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">dashboard</span>
 <span class="text-sm font-medium">Dashboard</span>
 </a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/20" href="#">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/20" href="/experts">
 <span class="material-symbols-outlined text-primary" style="font-size: 20px;">group</span>
 <span class="text-sm font-medium">Experts Directory</span>
 </a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#92a4c9] hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#92a4c9] hover:bg-surface-dark hover:text-white transition-colors group" href="/ask">
 <span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">psychology</span>
 <span class="text-sm font-medium">Intelligence</span>
 </a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#92a4c9] hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#92a4c9] hover:bg-surface-dark hover:text-white transition-colors group" href="/graph">
 <span class="material-symbols-outlined group-hover:text-white" style="font-size: 20px;">public</span>
 <span class="text-sm font-medium">Network Map</span>
 </a>

@@ -171,7 +171,13 @@ Import Stitch multi-screen ZIP sets (one ZIP per screen):
 ./scripts/build_lovable_frontend.sh
 ```
 
-The imported screens are available at `/stitch`.
+The imported screens are exposed as direct routes:
+
+- `/` (landing)
+- `/papers`
+- `/experts`
+- `/graph`
+- `/ask`
 
 Set API base in Lovable frontend to empty or root-relative paths (recommended):
 

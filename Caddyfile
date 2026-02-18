@@ -5,13 +5,6 @@
 {$DEMO_DOMAIN} {
 	encode zstd gzip
 
-	# Optional legacy frontend route.
-	handle_path /app* {
-		root * /srv/frontend
-		try_files {path} /index.html
-		file_server
-	}
-
 	# Optional protection for admin and debug routes:
 	# 1) Generate a hash: docker run --rm caddy:2.9-alpine caddy hash-password --plaintext "CHANGE_ME"
 	# 2) Set BASIC_AUTH_USER and BASIC_AUTH_PASSWORD_HASH in .env.prod
@@ -22,7 +15,7 @@
 	#	{$BASIC_AUTH_USER} {$BASIC_AUTH_PASSWORD_HASH}
 	# }
 
-	@backend path /api/* /healthz /health /admin* /debug/* /demo* /experts/*
+	@backend path /api/* /healthz /health /admin* /debug/*
 	handle @backend {
 		reverse_proxy web:8000
 	}
@@ -48,7 +41,7 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 
-	# Root route: serve Stitch HTML code directly.
+	# Stitch page routes.
 	@stitch_root path /
 	handle @stitch_root {
 		root * /srv/frontend
@@ -56,7 +49,35 @@
 		file_server
 	}
 
-	# Fallback: keep Stitch as the default UI for unknown frontend routes too.
+	@stitch_papers path /papers /papers/*
+	handle @stitch_papers {
+		root * /srv/frontend
+		rewrite * /stitch-screens/screen-02/code.html
+		file_server
+	}
+
+	@stitch_experts path /experts /experts/*
+	handle @stitch_experts {
+		root * /srv/frontend
+		rewrite * /stitch-screens/screen-03/code.html
+		file_server
+	}
+
+	@stitch_graph path /graph /graph/*
+	handle @stitch_graph {
+		root * /srv/frontend
+		rewrite * /stitch-screens/screen-04/code.html
+		file_server
+	}
+
+	@stitch_ask path /ask /ask/* /states /states/*
+	handle @stitch_ask {
+		root * /srv/frontend
+		rewrite * /stitch-screens/screen-06/code.html
+		file_server
+	}
+
+	# Fallback: default to Stitch landing.
 	handle {
 		root * /srv/frontend
 		try_files {path} /stitch-screens/screen-01/code.html
