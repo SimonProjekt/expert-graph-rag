@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 
 type StitchScreen = {
   id: string;
@@ -68,17 +67,11 @@ const StitchScreens = () => {
     <div className="min-h-screen bg-background text-foreground p-4 lg:p-6">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Stitch Screen Imports</h1>
+          <h1 className="text-xl font-bold tracking-tight">Expert Finder UI</h1>
           <p className="text-sm text-muted-foreground">
-            Imported multi-screen references from ZIP exports for integration work.
+            Stitch multi-screen UI imported from your ZIP exports.
           </p>
         </div>
-        <Link
-          to="/"
-          className="inline-flex items-center rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-muted"
-        >
-          Back to App
-        </Link>
       </header>
 
       {loading ? (
