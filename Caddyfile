@@ -48,10 +48,18 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 
-	# Default route: serve frontend directly on root domain.
+	# Root route: serve Stitch HTML code directly.
+	@stitch_root path /
+	handle @stitch_root {
+		root * /srv/frontend
+		rewrite * /stitch-screens/screen-01/code.html
+		file_server
+	}
+
+	# Fallback: keep Stitch as the default UI for unknown frontend routes too.
 	handle {
 		root * /srv/frontend
-		try_files {path} /index.html
+		try_files {path} /stitch-screens/screen-01/code.html
 		file_server
 	}
 }

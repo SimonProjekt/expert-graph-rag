@@ -145,6 +145,7 @@ With OpenAI enabled, Ask responses are grounded and formatted as:
 
 This repo is pre-wired so a Lovable-generated frontend can run on the same domain.
 The frontend is served directly at `/`, while the Django UI remains available at `/demo`.
+Current default root experience serves the imported Stitch HTML (`/stitch-screens/screen-01/code.html`).
 
 - Backend API remains at `/api/*`
 - Lovable frontend build artifacts are stored in `frontend/static`
