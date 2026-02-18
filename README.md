@@ -179,6 +179,11 @@ The imported screens are exposed as direct routes:
 - `/graph`
 - `/ask`
 
+Backup old Django UI remains available at:
+
+- `/demo/`
+- `/legacy` (redirects to `/demo/`)
+
 Set API base in Lovable frontend to empty or root-relative paths (recommended):
 
 ```bash

@@ -15,9 +15,15 @@
 	#	{$BASIC_AUTH_USER} {$BASIC_AUTH_PASSWORD_HASH}
 	# }
 
-	@backend path /api/* /healthz /health /admin* /debug/*
+	@backend path /api/* /healthz /health /admin* /debug* /demo* /experts/*
 	handle @backend {
 		reverse_proxy web:8000
+	}
+
+	# Backup route to old Django UI.
+	@legacy path /legacy /legacy/*
+	handle @legacy {
+		redir /demo/ 302
 	}
 
 	handle_path /static/* {
