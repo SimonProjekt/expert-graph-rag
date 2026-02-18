@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Expert Finder - Knowledge Graph</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#002561","accent": "#008cff",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#0b0e14",
+                        "panel-dark": "#151923",
+                        "border-dark": "#2a3142",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"],
+                    },
+                    boxShadow: {
+                        'glow-accent': '0 0 10px rgba(0, 140, 255, 0.3)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0e14; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a3142; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3e4a63; 
+        }
+        .node-glow-primary {
+            box-shadow: 0 0 15px rgba(0, 140, 255, 0.4);
+        }
+        .node-glow-expert {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+        .node-glow-paper {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+        .dashed-border {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='999' ry='999' stroke='%239CA3AF' stroke-width='2' stroke-dasharray='6%2c 4' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+            border: none !important;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white overflow-hidden h-screen flex">
+<div class="flex-shrink-0 w-[260px] h-full flex flex-col bg-panel-dark border-r border-border-dark z-20">
+<div class="flex flex-col h-full justify-between p-3">
+<div class="flex flex-col gap-6">
+<div class="flex gap-3 items-center px-2 pt-2">
+<div class="bg-primary flex items-center justify-center rounded h-8 w-8 text-white font-bold text-sm tracking-tighter">
+                    EF
+                </div>
+<div class="flex flex-col">
+<h1 class="text-white text-sm font-semibold leading-none mb-0.5 tracking-tight">Expert Finder</h1>
+<p class="text-gray-400 text-[10px] uppercase tracking-wider">Internal Console</p>
+</div>
+</div>
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:bg-[#1f2636] hover:text-white transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-accent">dashboard</span>
+<p class="text-xs font-medium uppercase tracking-wide">Dashboard</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:bg-[#1f2636] hover:text-white transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-accent">person_search</span>
+<p class="text-xs font-medium uppercase tracking-wide">Expert Search</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 rounded bg-primary/20 text-accent border-l-2 border-accent">
+<span class="material-symbols-outlined text-[18px]">hub</span>
+<p class="text-xs font-medium uppercase tracking-wide">Knowledge Graph</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:bg-[#1f2636] hover:text-white transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-accent">library_books</span>
+<p class="text-xs font-medium uppercase tracking-wide">Papers</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:bg-[#1f2636] hover:text-white transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-accent">folder_shared</span>
+<p class="text-xs font-medium uppercase tracking-wide">Projects</p>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-1 border-t border-border-dark pt-3">
+<div class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:bg-[#1f2636] hover:text-white transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-accent">settings</span>
+<p class="text-xs font-medium uppercase tracking-wide">Configuration</p>
+</div>
+<div class="flex items-center gap-3 px-2 py-2 mt-2">
+<div class="bg-center bg-no-repeat bg-cover rounded-full h-8 w-8 relative border border-gray-600" data-alt="User avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAwI6EWx0TS09e9AFfYMqBBVfQc1usbD8p1YSU_OzNXkodmkZkf4VH1UiPBaLPmo7pA1W7rl3QVs62I7w-u_8fV1N21gOjS-K5wRrScYLv8WDSdnEb7zF4AY2Pncq8WtrWJeUo4DeJ7Ngu71hVaS-jnUTKpiFh-GxCgBU4NfzB4xysJNWBayM1kJ9swNUC7mEqXONIJ5BwWNtKFCdPLUGE9vsc69OGBxd0MsYh7MamNY5PRX2GhjDIl2Z7ITQ4UcWAX9uKIE0fC-wsO");'></div>
+<div class="flex flex-col">
+<span class="text-xs text-white">Dr. A. Vance</span>
+<span class="text-[10px] text-gray-500">Principal Researcher</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex-1 flex flex-col h-full min-w-0 bg-background-dark relative">
+<div class="h-8 bg-[#080a0f] border-b border-border-dark flex items-center justify-between px-4 text-[10px] text-gray-500 font-mono select-none">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>SYSTEM ONLINE</span>
+<span>LATENCY: 24ms</span>
+<span>NODES: 154</span>
+<span>EDGES: 342</span>
+</div>
+<div class="flex items-center gap-4">
+<span>REGION: EU-NORTH</span>
+<span>BUILD: v2.4.1</span>
+</div>
+</div>
+<header class="flex-shrink-0 bg-panel-dark border-b border-border-dark px-6 py-3 flex justify-between items-center shadow-md z-10">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2 text-xs text-gray-400 mb-1">
+<span class="material-symbols-outlined text-[14px]">home</span>
+<span>/</span>
+<span>Intelligence</span>
+<span>/</span>
+<span class="text-accent">Telecom AI Graph</span>
+</div>
+<h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                Network Optimization - 5G Slicing
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent/10 text-accent border border-accent/20">LIVE</span>
+</h1>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex bg-[#0f1219] border border-border-dark rounded-md p-0.5">
+<button class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white rounded transition-colors">List</button>
+<button class="px-3 py-1.5 text-xs font-medium bg-accent text-white rounded shadow-sm">Graph</button>
+<button class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white rounded transition-colors">Matrix</button>
+</div>
+<div class="h-6 w-px bg-border-dark mx-1"></div>
+<button class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors shadow-glow-accent">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                Export
+            </button>
+</div>
+</header>
+<main class="flex-1 relative overflow-hidden bg-[#0b0e14]">
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: linear-gradient(#2a3142 1px, transparent 1px), linear-gradient(90deg, #2a3142 1px, transparent 1px); background-size: 40px 40px;"></div>
+<div class="w-full h-full relative cursor-grab active:cursor-grabbing">
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 0;">
+<defs>
+<marker id="arrowhead" markerHeight="7" markerWidth="10" orient="auto" refX="28" refY="3.5">
+<polygon fill="#3e4a63" points="0 0, 10 3.5, 0 7"></polygon>
+</marker>
+</defs>
+<g opacity="0.6" stroke="#3e4a63" stroke-width="1.5">
+<line x1="50%" x2="30%" y1="50%" y2="30%"></line>
+<line x1="50%" x2="70%" y1="50%" y2="30%"></line>
+<line x1="50%" x2="65%" y1="50%" y2="65%"></line>
+<line x1="50%" x2="35%" y1="50%" y2="70%"></line>
+<line x1="30%" x2="25%" y1="30%" y2="15%"></line>
+<line x1="70%" x2="80%" y1="30%" y2="35%"></line>
+<line stroke-dasharray="4 2" x1="65%" x2="60%" y1="65%" y2="80%"></line> 
+</g>
+</svg>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-2 cursor-pointer group">
+<div class="w-20 h-20 rounded-full bg-[#0f1219] border-2 border-accent flex items-center justify-center node-glow-primary hover:scale-105 transition-transform z-20 relative">
+<span class="material-symbols-outlined text-accent text-4xl">hub</span>
+<div class="absolute -top-1 -right-1 w-6 h-6 bg-accent text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#0f1219]">99</div>
+</div>
+<span class="text-white text-sm font-bold bg-panel-dark/90 px-3 py-1 rounded backdrop-blur-md border border-border-dark shadow-lg">Telecom AI</span>
+</div>
+<div class="absolute top-[30%] left-[70%] z-10 flex flex-col items-center gap-2 cursor-pointer group hover:z-30">
+<div class="w-14 h-14 rounded-full bg-[#0f1219] border-2 border-emerald-500 flex items-center justify-center node-glow-expert overflow-hidden hover:scale-110 transition-transform relative">
+<img alt="Author" class="w-full h-full object-cover opacity-90 group-hover:opacity-100" data-alt="Portrait of a female researcher" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCszAcdOUcmAxm6aWv2Hjr4DUTsVAy22HPcl6MT66Cn7TNMD1tqmXY96iAOog3PNIGSky_cv7Ibraf-Q1jKG5hVAiHvR0JA8QC0IrRfPWxV_5oCtAxDuvz5GHZj-eQ6t9SPgaR1jqRRiv9AFZItxj-aGRg7m6pdKiWA8XlRXOZEZK4NY-8idVCB4ANp90s2zpAqNcz5vRrIXqbFnMruU_IAoWKHyvkoY3Q6IVxtoNJAoVX3Sq8peAymmxTHj9o8-_wxgT2_Val69RWb"/>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-gray-200 text-xs font-semibold bg-panel-dark/90 px-2 py-0.5 rounded backdrop-blur-md border border-border-dark whitespace-nowrap">Dr. Sarah C.</span>
+<span class="text-[10px] text-emerald-400 bg-emerald-900/30 px-1 rounded mt-0.5">Expert</span>
+</div>
+</div>
+<div class="absolute top-[30%] left-[30%] z-10 flex flex-col items-center gap-2 cursor-pointer group hover:z-30">
+<div class="w-14 h-14 rounded-full bg-[#0f1219] relative flex items-center justify-center node-glow-expert hover:scale-110 transition-transform">
+<div class="absolute inset-0 rounded-full dashed-border pointer-events-none"></div>
+<div class="w-12 h-12 rounded-full overflow-hidden">
+<img alt="Author" class="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all" data-alt="Portrait of a male researcher" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKV3NbZSfybGngRxkx1SoYcymhZXvjpj0OSG-SCahrRenXsCwb0OZ4TL9oaWHR-dtj_v-oZvnfdr5TXTkYvzViohzuHLxrXEIcZfqL1AUrugHNfstBo92ZEWE7CfYn9JY6D1YRr1-RfwgkHrxzMeQTP3Z13mAgQpqwqOlOsePST5FumlN4_X3p_Xhpmicyq0mEzcLUB9tba7U_yUJiHl_Ekdb6xa2lSQ1bTfQXLAdC8Oz-ws1kDJn9_HvP55Q2_8PH7whhMME2psUP"/>
+</div>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-gray-400 text-xs font-medium bg-panel-dark/80 px-2 py-0.5 rounded backdrop-blur-md border border-border-dark whitespace-nowrap">Prof. A. Ray</span>
+<span class="text-[10px] text-gray-500 bg-gray-800/50 px-1 rounded mt-0.5 border border-gray-700 border-dashed">Synthetic</span>
+</div>
+</div>
+<div class="absolute top-[65%] left-[65%] z-20 flex flex-col items-center gap-2 cursor-pointer group hover:z-30">
+<div class="w-16 h-16 rounded-xl bg-[#0f1219] border-2 border-amber-500 flex items-center justify-center shadow-lg node-glow-paper hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-amber-500 text-3xl">article</span>
+</div>
+<span class="text-white text-xs font-bold bg-amber-600/20 text-amber-500 border border-amber-500/50 px-2 py-1 rounded backdrop-blur-md max-w-[120px] text-center leading-tight">Deep ResNets for 5G</span>
+</div>
+<div class="absolute top-[70%] left-[35%] z-10 flex flex-col items-center gap-2 cursor-pointer group hover:z-30">
+<div class="w-12 h-12 rounded-lg bg-[#0f1219] relative flex items-center justify-center hover:scale-105 transition-transform">
+<div class="absolute inset-0 rounded-lg dashed-border pointer-events-none"></div>
+<span class="material-symbols-outlined text-gray-400 text-xl">description</span>
+</div>
+<span class="text-gray-500 text-[10px] font-mono bg-panel-dark/80 px-1 rounded border border-gray-700 border-dashed">SYNTH-DATA-042</span>
+</div>
+<div class="absolute top-[25%] left-[25%] z-10 flex flex-col items-center gap-2 cursor-pointer group hover:z-30">
+<div class="w-10 h-10 rounded-full bg-[#0f1219] border-2 border-accent flex items-center justify-center hover:scale-110 transition-transform shadow-glow-accent">
+<span class="material-symbols-outlined text-accent text-lg">lightbulb</span>
+</div>
+<span class="text-accent text-[10px] font-bold uppercase tracking-wider bg-panel-dark px-1.5 py-0.5 rounded border border-border-dark">Latency</span>
+</div>
+<div class="absolute top-[80%] left-[60%] z-10 flex flex-col items-center gap-2 cursor-pointer group hover:z-30">
+<div class="w-10 h-10 rounded-full bg-[#0f1219] border-2 border-accent flex items-center justify-center hover:scale-110 transition-transform shadow-glow-accent">
+<span class="material-symbols-outlined text-accent text-lg">settings_ethernet</span>
+</div>
+<span class="text-accent text-[10px] font-bold uppercase tracking-wider bg-panel-dark px-1.5 py-0.5 rounded border border-border-dark">Throughput</span>
+</div>
+</div>
+<div class="absolute top-6 left-6 z-30 flex flex-col gap-4">
+<div class="bg-panel-dark/95 backdrop-blur border border-border-dark rounded-lg shadow-xl p-3 flex flex-col gap-2 min-w-[200px]">
+<div class="flex justify-between items-center mb-1">
+<h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Node Types</h3>
+<span class="text-[10px] text-gray-600 hover:text-white cursor-pointer">Clear</span>
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded text-[11px] text-emerald-400 transition-colors">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Experts
+                    </button>
+<button class="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded text-[11px] text-amber-500 transition-colors">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        Papers
+                    </button>
+<button class="flex items-center gap-1.5 px-2 py-1 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded text-[11px] text-accent transition-colors">
+<span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+                        Topics
+                    </button>
+</div>
+</div>
+<div class="bg-panel-dark/95 backdrop-blur border border-border-dark rounded-lg shadow-xl p-3 flex flex-col gap-2 min-w-[200px]">
+<h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Data Provenance</h3>
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 rounded-full border-2 border-gray-400 bg-transparent flex items-center justify-center"></div>
+<span class="text-xs text-gray-300">Verified (Real)</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 rounded-full border-2 border-gray-500 border-dashed bg-transparent flex items-center justify-center"></div>
+<span class="text-xs text-gray-400">Synthetic / Inferred</span>
+</div>
+</div>
+</div>
+<div class="absolute bottom-6 left-6 z-30 flex gap-2">
+<div class="bg-panel-dark border border-border-dark rounded-lg shadow-lg flex items-center p-1">
+<button class="p-2 text-gray-400 hover:bg-[#232f48] hover:text-white rounded transition-colors" title="Zoom In">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<div class="w-[1px] h-4 bg-border-dark mx-1"></div>
+<button class="p-2 text-gray-400 hover:bg-[#232f48] hover:text-white rounded transition-colors" title="Zoom Out">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+</div>
+<button class="bg-panel-dark border border-border-dark rounded-lg shadow-lg px-3 py-2 text-xs font-medium text-gray-300 hover:bg-[#232f48] hover:text-white transition-colors">
+                Zoom to Fit
+            </button>
+<button class="bg-panel-dark border border-border-dark rounded-lg shadow-lg px-3 py-2 text-xs font-medium text-gray-300 hover:bg-[#232f48] hover:text-white transition-colors">
+                Reset
+            </button>
+</div>
+<div class="absolute bottom-6 right-6 z-40">
+<div class="bg-panel-dark border border-l-4 border-l-green-500 border-y-border-dark border-r-border-dark rounded-r-lg shadow-2xl px-4 py-3 flex items-start gap-3 w-80">
+<span class="material-symbols-outlined text-green-500 text-lg mt-0.5">data_check</span>
+<div class="flex flex-col gap-0.5">
+<p class="text-xs font-bold text-white uppercase tracking-wide">Graph Updated</p>
+<p class="text-[11px] text-gray-400">Successfully fetched 154 nodes and 342 edges.</p>
+<p class="text-[10px] text-gray-600 font-mono mt-1">Latency: 420ms | Source: int-api-v2</p>
+</div>
+<button class="ml-auto text-gray-500 hover:text-white">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+</div>
+</main>
+</div>
+<aside class="w-[380px] flex-shrink-0 bg-panel-dark border-l border-border-dark h-full overflow-y-auto flex flex-col z-20 shadow-2xl">
+<div class="p-5 border-b border-border-dark flex flex-col gap-3 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 z-10">
+<button class="text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-wider">
+<span class="material-symbols-outlined text-[12px]">article</span> Paper
+            </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] font-bold uppercase tracking-wider">
+                Verified Source
+            </span>
+</div>
+<h2 class="text-lg font-bold text-white leading-snug pr-6">Deep Residual Learning for Image Recognition in 5G Networks</h2>
+<div class="flex items-center gap-4 text-[11px] text-gray-400 mt-1">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> 2016
+            </div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">format_quote</span> 182k Citations
+            </div>
+<div class="flex items-center gap-1 text-emerald-400">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> High Impact
+            </div>
+</div>
+</div>
+<div class="p-5 flex flex-col gap-6">
+<div class="bg-[#1a202e] border border-border-dark rounded p-3">
+<h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">apartment</span> Internal Unit Alignment
+             </h3>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-xs text-gray-300">Radio Access Network (RAN)</span>
+<span class="text-[10px] font-mono text-green-400">98% Match</span>
+</div>
+<div class="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
+<div class="bg-green-500 h-full rounded-full" style="width: 98%"></div>
+</div>
+<div class="flex items-center justify-between mt-1">
+<span class="text-xs text-gray-300">Core Network AI</span>
+<span class="text-[10px] font-mono text-yellow-500">45% Match</span>
+</div>
+<div class="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
+<div class="bg-yellow-500 h-full rounded-full" style="width: 45%"></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Knowledge Graph Tags</h3>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-1 rounded bg-[#232f48] text-gray-300 text-[11px] border border-border-dark hover:border-accent hover:text-white transition-colors cursor-pointer">Deep Learning</span>
+<span class="px-2 py-1 rounded bg-[#232f48] text-gray-300 text-[11px] border border-border-dark hover:border-accent hover:text-white transition-colors cursor-pointer">Computer Vision</span>
+<span class="px-2 py-1 rounded bg-[#232f48] text-gray-300 text-[11px] border border-border-dark hover:border-accent hover:text-white transition-colors cursor-pointer">Neural Networks</span>
+<span class="px-2 py-1 rounded bg-accent/10 text-accent text-[11px] border border-accent/20 cursor-pointer">Optimization</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Abstract</h3>
+<p class="text-gray-300 text-xs leading-relaxed font-light">
+                Deeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously. This architecture is pivotal for modern telecom AI applications where low-latency inference is critical.
+            </p>
+</div>
+<div class="flex flex-col gap-3">
+<h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Key Contributors</h3>
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3 p-2 hover:bg-[#1a202e] border border-transparent hover:border-border-dark rounded transition-colors cursor-pointer group">
+<div class="w-8 h-8 rounded bg-emerald-900/40 text-emerald-400 flex items-center justify-center text-[10px] font-bold border border-emerald-500/20">KH</div>
+<div class="flex flex-col">
+<span class="text-gray-200 text-xs font-medium group-hover:text-white">Kaiming He</span>
+<span class="text-gray-500 text-[10px]">Facebook AI Research</span>
+</div>
+<span class="material-symbols-outlined text-gray-600 ml-auto group-hover:text-accent text-[16px]">open_in_new</span>
+</div>
+</div>
+</div>
+<div class="mt-auto grid grid-cols-2 gap-3 pt-4 border-t border-border-dark">
+<button class="bg-[#232f48] hover:bg-[#2d3b55] text-white text-xs font-medium py-2 px-3 rounded flex items-center justify-center gap-2 transition-colors border border-border-dark">
+<span class="material-symbols-outlined text-[16px]">bookmark</span>
+                Save
+            </button>
+<button class="bg-accent hover:bg-blue-600 text-white text-xs font-medium py-2 px-3 rounded flex items-center justify-center gap-2 transition-colors shadow-glow-accent">
+<span class="material-symbols-outlined text-[16px]">article</span>
+                View PDF
+            </button>
+</div>
+</div>
+</aside>
+
+</body></html>

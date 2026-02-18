@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Expert Finder Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b6cee",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                        "surface-dark": "#1a2436",
+                        "border-dark": "#232f48",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #101622; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #324467; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2b6cee; 
+        }
+        .line-clamp-1 {
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50 overflow-hidden h-screen flex flex-col font-display">
+<header class="flex shrink-0 items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-border-dark bg-white dark:bg-[#111722] px-6 py-3 z-20">
+<div class="flex items-center gap-4 text-slate-900 dark:text-white">
+<div class="size-8 flex items-center justify-center rounded-lg bg-primary/20 text-primary">
+<span class="material-symbols-outlined text-2xl">science</span>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Expert Finder</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+</span>
+<span class="text-emerald-500 text-xs font-bold uppercase tracking-wide">System Healthy</span>
+</div>
+<div class="h-6 w-px bg-slate-200 dark:bg-border-dark mx-2"></div>
+<button class="flex items-center justify-center rounded-lg size-10 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-surface-dark transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded-lg size-10 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-surface-dark transition-colors">
+<span class="material-symbols-outlined">light_mode</span>
+</button>
+<div class="size-9 rounded-full bg-cover bg-center border-2 border-slate-200 dark:border-border-dark" data-alt="User profile photo" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDxfNW8REuYoW0z3h6CfoESTSUi1PurfP7gGZzydXygt2GmTi2tbwMT5IE24zVZaiRkA2hvMgqJmSQm7wjFtzZw0nTwrRuG23hUMtp0y-1KmsbpfSR7BYgBrd58TJhnQ7hspaNmkGBUhGn1Tz0p-dFUOhQWpG7d8Sd8qwE4nvZxYhXhLG8TJoexcgVwNIhmKCUsJ2l8qcmKYF4Yf7poeS8pMJaHNApuv6QZ5VDUXTgC7c-3Ut9sMm1K_L_xlT9EZetVJp9BJFNmFpVH');"></div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<aside class="w-80 flex flex-col border-r border-slate-200 dark:border-border-dark bg-white dark:bg-[#111722] overflow-y-auto">
+<div class="p-4 space-y-6">
+<div class="space-y-2">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Search Query</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2.5 rounded-lg border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-slate-900 dark:text-white" placeholder="Topics, DOI, authors..." type="text" value="RL Optimization"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+<svg class="animate-spin h-4 w-4 text-primary opacity-0" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+<path class="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path>
+</svg>
+</div>
+</div>
+</div>
+<div class="space-y-3">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Clearance Level</label>
+<div class="flex flex-col gap-2">
+<label class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark cursor-pointer hover:border-primary/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<span class="flex items-center gap-2 text-sm font-medium">
+<span class="material-symbols-outlined text-green-500 text-[18px]">public</span>
+                            Public
+                        </span>
+<input checked="" class="text-primary focus:ring-primary border-slate-300 dark:border-slate-600 bg-transparent" name="clearance" type="radio"/>
+</label>
+<label class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark cursor-pointer hover:border-primary/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<span class="flex items-center gap-2 text-sm font-medium">
+<span class="material-symbols-outlined text-amber-500 text-[18px]">lock_person</span>
+                            Internal
+                        </span>
+<input class="text-primary focus:ring-primary border-slate-300 dark:border-slate-600 bg-transparent" name="clearance" type="radio"/>
+</label>
+<label class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark cursor-pointer hover:border-primary/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<span class="flex items-center gap-2 text-sm font-medium">
+<span class="material-symbols-outlined text-red-500 text-[18px]">gpp_maybe</span>
+                            Confidential
+                        </span>
+<input class="text-primary focus:ring-primary border-slate-300 dark:border-slate-600 bg-transparent" name="clearance" type="radio"/>
+</label>
+</div>
+</div>
+<div class="p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg flex items-start gap-3">
+<span class="material-symbols-outlined text-red-500 text-lg mt-0.5">visibility_off</span>
+<div class="flex-1">
+<p class="text-xs font-semibold text-red-700 dark:text-red-400">Restricted Content</p>
+<p class="text-[11px] text-red-600 dark:text-red-500/80 leading-tight mt-1">
+                        14 records hidden by clearance level settings. Upgrade clearance to view all 138 matches.
+                    </p>
+</div>
+</div>
+<div class="space-y-3">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Publication Date</label>
+<div class="rounded-lg border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark p-3">
+<div class="flex items-center justify-between mb-2">
+<button class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<span class="text-sm font-bold">Oct 2023</span>
+<button class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+<div class="grid grid-cols-7 gap-1 text-center text-xs text-slate-400 mb-1">
+<span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+</div>
+<div class="grid grid-cols-7 gap-1 text-center text-sm">
+<div class="py-1 text-slate-600 dark:text-slate-500">29</div>
+<div class="py-1 text-slate-600 dark:text-slate-500">30</div>
+<div class="py-1">1</div>
+<div class="py-1">2</div>
+<div class="py-1">3</div>
+<div class="py-1">4</div>
+<div class="py-1 bg-primary text-white rounded-full shadow-sm shadow-primary/50">5</div>
+<div class="py-1 bg-primary/20 text-primary rounded-l-full">6</div>
+<div class="py-1 bg-primary/20 text-primary">7</div>
+<div class="py-1 bg-primary/20 text-primary">8</div>
+<div class="py-1 bg-primary/20 text-primary rounded-r-full">9</div>
+<div class="py-1">10</div>
+<div class="py-1">11</div>
+<div class="py-1">12</div>
+</div>
+</div>
+</div>
+<div class="space-y-3">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Topics</label>
+<div class="flex flex-wrap gap-2">
+<div class="flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-slate-200 dark:bg-border-dark text-xs font-medium text-slate-700 dark:text-slate-300">
+                        O-RAN
+                        <button class="hover:text-red-400"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</div>
+<div class="flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-slate-200 dark:bg-border-dark text-xs font-medium text-slate-700 dark:text-slate-300">
+                        Reinforcement Learning
+                        <button class="hover:text-red-400"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</div>
+</div>
+<button class="text-xs text-primary font-medium hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">add</span> Add Topic
+                </button>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col bg-slate-50 dark:bg-background-dark relative min-w-0">
+<div class="sticky top-0 z-10 flex flex-col sm:flex-row sm:items-center justify-between px-6 pt-5 pb-2 bg-slate-50 dark:bg-background-dark border-b border-slate-200 dark:border-border-dark/50 gap-4">
+<nav class="flex gap-6 overflow-x-auto pb-2 sm:pb-0">
+<button class="relative pb-3 text-sm font-semibold text-primary border-b-2 border-primary">
+                    Papers
+                    <span class="ml-1.5 bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded-full">124</span>
+</button>
+<button class="relative pb-3 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                    Experts
+                    <span class="ml-1.5 bg-slate-100 dark:bg-surface-dark text-slate-500 text-[10px] px-1.5 py-0.5 rounded-full">8</span>
+</button>
+<button class="relative pb-3 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                    Graph
+                </button>
+<button class="relative pb-3 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                    Ask AI
+                    <span class="ml-1 text-primary">✨</span>
+</button>
+</nav>
+<div class="flex items-center gap-3 pb-2 sm:pb-0">
+<span class="text-xs font-medium text-slate-500">Sort by:</span>
+<div class="relative">
+<select class="appearance-none pl-3 pr-8 py-1.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+<option>Relevance</option>
+<option>Recency</option>
+<option>Impact Factor</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1.5 pointer-events-none text-slate-500 text-lg">arrow_drop_down</span>
+</div>
+<div class="flex border border-slate-200 dark:border-border-dark rounded-lg overflow-hidden">
+<button class="p-1.5 bg-slate-100 dark:bg-surface-dark text-primary dark:text-white"><span class="material-symbols-outlined text-[18px]">view_list</span></button>
+<button class="p-1.5 bg-white dark:bg-[#111722] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"><span class="material-symbols-outlined text-[18px]">grid_view</span></button>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-0">
+<div class="divide-y divide-slate-200 dark:divide-border-dark border-b border-slate-200 dark:border-border-dark">
+<div class="hidden md:grid grid-cols-12 gap-4 px-6 py-2 bg-slate-100/50 dark:bg-surface-dark/50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+<div class="col-span-5">Paper &amp; Snippet</div>
+<div class="col-span-3">Topics &amp; Source</div>
+<div class="col-span-3">Authors</div>
+<div class="col-span-1 text-right">Date</div>
+</div>
+<div class="group grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-6 py-4 md:py-3 bg-primary/5 border-l-4 border-l-primary hover:bg-primary/10 transition-colors cursor-pointer items-start md:items-center">
+<div class="md:col-span-5 space-y-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors line-clamp-1" title="RL-based RAN Slicing Optimization for 5G Networks">
+                            RL-based RAN Slicing Optimization for 5G Networks
+                        </h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 font-mono">
+                            &gt; optimizing <mark class="bg-yellow-200 dark:bg-yellow-900/40 text-slate-900 dark:text-yellow-100 px-0.5 rounded">latency</mark> via Q-learning in distributed O-RU units...
+                        </p>
+</div>
+<div class="md:col-span-3 flex flex-wrap items-center gap-2">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+<span class="material-symbols-outlined text-[10px]">check_circle</span> REAL
+                        </span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">O-RAN</span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">5G</span>
+</div>
+<div class="md:col-span-3 flex items-center gap-2 overflow-hidden">
+<div class="flex -space-x-1.5">
+<div class="size-6 rounded-full bg-indigo-500 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">JD</div>
+<div class="size-6 rounded-full bg-pink-500 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">AS</div>
+</div>
+<span class="text-xs text-slate-500 truncate">J. Doe, A. Smith et al.</span>
+</div>
+<div class="md:col-span-1 text-right text-xs font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        Oct 12
+                    </div>
+</div>
+<div class="group grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-6 py-4 md:py-3 hover:bg-slate-50 dark:hover:bg-surface-dark border-l-4 border-l-transparent hover:border-l-slate-300 dark:hover:border-l-slate-600 transition-colors cursor-pointer items-start md:items-center">
+<div class="md:col-span-5 space-y-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors line-clamp-1" title="Generative Models for Synthetic Channel Estimation">
+                            Generative Models for Synthetic Channel Estimation
+                        </h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 font-mono">
+                            &gt; utilizing GANs to predict fading profiles in mmWave bands...
+                        </p>
+</div>
+<div class="md:col-span-3 flex flex-wrap items-center gap-2">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-[10px] font-bold text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+<span class="material-symbols-outlined text-[10px]">smart_toy</span> SYNTH
+                        </span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">GenAI</span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">MIMO</span>
+</div>
+<div class="md:col-span-3 flex items-center gap-2 overflow-hidden">
+<div class="flex -space-x-1.5">
+<div class="size-6 rounded-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">MK</div>
+</div>
+<span class="text-xs text-slate-500 truncate">M. Kim</span>
+</div>
+<div class="md:col-span-1 text-right text-xs font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        Sep 28
+                    </div>
+</div>
+<div class="group grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-6 py-4 md:py-3 hover:bg-slate-50 dark:hover:bg-surface-dark border-l-4 border-l-transparent hover:border-l-slate-300 dark:hover:border-l-slate-600 transition-colors cursor-pointer items-start md:items-center">
+<div class="md:col-span-5 space-y-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors line-clamp-1" title="Beamforming Strategies for 6G Terahertz Communications">
+                            Beamforming Strategies for 6G Terahertz Communications
+                        </h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 font-mono">
+                            &gt; comparative analysis of hybrid vs digital beamforming in THz...
+                        </p>
+</div>
+<div class="md:col-span-3 flex flex-wrap items-center gap-2">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+<span class="material-symbols-outlined text-[10px]">check_circle</span> REAL
+                        </span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">6G</span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">THz</span>
+</div>
+<div class="md:col-span-3 flex items-center gap-2 overflow-hidden">
+<div class="flex -space-x-1.5">
+<div class="size-6 rounded-full bg-slate-500 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">L</div>
+<div class="size-6 rounded-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">T</div>
+<div class="size-6 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">+2</div>
+</div>
+<span class="text-xs text-slate-500 truncate">L. Zhang, T. O'Neil...</span>
+</div>
+<div class="md:col-span-1 text-right text-xs font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        Sep 15
+                    </div>
+</div>
+<div class="group grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-6 py-4 md:py-3 hover:bg-slate-50 dark:hover:bg-surface-dark border-l-4 border-l-transparent hover:border-l-slate-300 dark:hover:border-l-slate-600 transition-colors cursor-pointer items-start md:items-center">
+<div class="md:col-span-5 space-y-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors line-clamp-1" title="Anomaly Detection in Core Network Traffic using Autoencoders">
+                            Anomaly Detection in Core Network Traffic using Autoencoders
+                        </h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 font-mono">
+                            &gt; unsupervised learning for identifying DDoS patterns in core...
+                        </p>
+</div>
+<div class="md:col-span-3 flex flex-wrap items-center gap-2">
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-[10px] font-bold text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+<span class="material-symbols-outlined text-[10px]">smart_toy</span> SYNTH
+                        </span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">Security</span>
+<span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-surface-dark text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-border-dark">Core</span>
+</div>
+<div class="md:col-span-3 flex items-center gap-2 overflow-hidden">
+<div class="flex -space-x-1.5">
+<div class="size-6 rounded-full bg-orange-500 flex items-center justify-center text-[9px] text-white font-bold ring-2 ring-white dark:ring-surface-dark">RP</div>
+</div>
+<span class="text-xs text-slate-500 truncate">R. Patel</span>
+</div>
+<div class="md:col-span-1 text-right text-xs font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        Aug 30
+                    </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-6 py-4 md:py-3 border-l-4 border-l-transparent items-center opacity-50">
+<div class="md:col-span-5 space-y-2">
+<div class="h-4 bg-slate-200 dark:bg-border-dark rounded w-3/4 animate-pulse"></div>
+<div class="h-3 bg-slate-200 dark:bg-border-dark rounded w-1/2 animate-pulse"></div>
+</div>
+<div class="md:col-span-3 flex gap-2">
+<div class="h-5 w-12 bg-slate-200 dark:bg-border-dark rounded animate-pulse"></div>
+<div class="h-5 w-10 bg-slate-200 dark:bg-border-dark rounded animate-pulse"></div>
+</div>
+<div class="md:col-span-3 flex gap-2 items-center">
+<div class="size-6 bg-slate-200 dark:bg-border-dark rounded-full animate-pulse"></div>
+<div class="h-3 w-20 bg-slate-200 dark:bg-border-dark rounded animate-pulse"></div>
+</div>
+<div class="md:col-span-1 flex justify-end">
+<div class="h-3 w-10 bg-slate-200 dark:bg-border-dark rounded animate-pulse"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<aside class="w-[400px] border-l border-slate-200 dark:border-border-dark bg-white dark:bg-[#111722] flex flex-col shadow-2xl z-10">
+<div class="p-5 border-b border-slate-200 dark:border-border-dark flex justify-between items-start">
+<div>
+<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 mb-2">Real Data</span>
+<h2 class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Paper Details</h2>
+</div>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<div class="space-y-4">
+<h1 class="text-xl font-bold text-slate-900 dark:text-white leading-snug">RL-based RAN Slicing Optimization for 5G Networks</h1>
+<div class="flex items-center gap-4 text-sm">
+<div class="flex flex-col">
+<span class="text-xs text-slate-500">Published</span>
+<span class="font-medium dark:text-slate-200">Oct 12, 2023</span>
+</div>
+<div class="w-px h-8 bg-slate-200 dark:bg-border-dark"></div>
+<div class="flex flex-col">
+<span class="text-xs text-slate-500">Source</span>
+<span class="font-medium dark:text-slate-200">IEEE Access</span>
+</div>
+<div class="w-px h-8 bg-slate-200 dark:bg-border-dark"></div>
+<div class="flex flex-col">
+<span class="text-xs text-slate-500">Relevance</span>
+<span class="font-medium text-emerald-500">98% Match</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                        View PDF
+                    </button>
+<button class="bg-slate-100 dark:bg-border-dark hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 py-2 px-3 rounded-lg transition-colors flex items-center justify-center" title="Export Citation">
+<span class="material-symbols-outlined text-[18px]">format_quote</span>
+</button>
+<button class="bg-slate-100 dark:bg-border-dark hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 py-2 px-3 rounded-lg transition-colors flex items-center justify-center" title="Share">
+<span class="material-symbols-outlined text-[18px]">share</span>
+</button>
+</div>
+</div>
+<div class="space-y-2">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Abstract
+                </h3>
+<div class="p-4 bg-slate-50 dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-border-dark">
+<p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed text-justify font-mono text-xs">
+                        This paper proposes a deep reinforcement learning (DRL) framework for dynamic resource allocation in O-RAN slicing. By leveraging proximal policy optimization (PPO) agents deployed at the Near-RT RIC, we demonstrate a 24% reduction in latency for URLLC slices while maintaining eMBB throughput. We also introduce a synthetic data augmentation pipeline to handle data sparsity in early deployment phases.
+                    </p>
+</div>
+</div>
+<div class="space-y-3">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white">Authors</h3>
+<div class="space-y-2">
+<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-surface-dark cursor-pointer transition-colors group">
+<div class="size-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold">JD</div>
+<div class="flex-1">
+<p class="text-sm font-medium dark:text-slate-200 group-hover:text-primary">John Doe, PhD</p>
+<p class="text-xs text-slate-500">Ericsson Research</p>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+</div>
+<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-surface-dark cursor-pointer transition-colors group">
+<div class="size-8 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs font-bold">AS</div>
+<div class="flex-1">
+<p class="text-sm font-medium dark:text-slate-200 group-hover:text-primary">Alice Smith, MD</p>
+<p class="text-xs text-slate-500">MIT CSAIL</p>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                    Knowledge Graph
+                    <span class="text-xs font-normal text-primary cursor-pointer hover:underline">View Full</span>
+</h3>
+<div class="h-32 rounded-xl bg-slate-900 relative overflow-hidden group cursor-pointer border border-slate-200 dark:border-border-dark" data-alt="Abstract visualization of a network graph with connected nodes">
+<div class="absolute inset-0 opacity-40">
+<div class="absolute top-1/2 left-1/2 w-2 h-2 bg-primary rounded-full shadow-[0_0_10px_rgba(43,108,238,0.8)]"></div>
+<div class="absolute top-1/3 left-1/3 w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+<div class="absolute top-2/3 left-2/3 w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+<div class="absolute top-1/4 left-3/4 w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+<div class="absolute top-1/2 left-1/2 w-20 h-px bg-slate-600 origin-left -rotate-45"></div>
+<div class="absolute top-1/2 left-1/2 w-24 h-px bg-slate-600 origin-left rotate-12"></div>
+<div class="absolute top-1/2 left-1/2 w-16 h-px bg-slate-600 origin-left rotate-120"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+<span class="text-white text-xs font-bold bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">Explore Connections</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+
+</body></html>

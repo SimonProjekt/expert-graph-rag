@@ -5,10 +5,12 @@
 {$DEMO_DOMAIN} {
 	encode zstd gzip
 
-	# Interview-safe mode: route /app to the stable Django UI.
-	# This avoids frontend instability during live demos.
-	@lovable path /app*
-	redir @lovable / 308
+	# Frontend app route.
+	handle_path /app* {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
 
 	# Optional protection for admin and debug routes:
 	# 1) Generate a hash: docker run --rm caddy:2.9-alpine caddy hash-password --plaintext "CHANGE_ME"

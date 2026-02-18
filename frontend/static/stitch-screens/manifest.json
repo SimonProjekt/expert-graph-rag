@@ -1,0 +1,56 @@
+[
+  {
+    "id": "screen-01",
+    "zip_name": "stitch.zip",
+    "title": "Expert Finder - Telecom Intelligence Console",
+    "has_code": true,
+    "code_path": "stitch-screens/screen-01/code.html",
+    "image_path": "stitch-screens/screen-01/screen.png"
+  }
+,
+  {
+    "id": "screen-02",
+    "zip_name": "stitch (1).zip",
+    "title": "Expert Finder Dashboard",
+    "has_code": true,
+    "code_path": "stitch-screens/screen-02/code.html",
+    "image_path": "stitch-screens/screen-02/screen.png"
+  }
+,
+  {
+    "id": "screen-03",
+    "zip_name": "stitch (2).zip",
+    "title": "Internal Console - Expert Discovery",
+    "has_code": true,
+    "code_path": "stitch-screens/screen-03/code.html",
+    "image_path": "stitch-screens/screen-03/screen.png"
+  }
+,
+  {
+    "id": "screen-04",
+    "zip_name": "stitch (3).zip",
+    "title": "Expert Finder - Knowledge Graph",
+    "has_code": true,
+    "code_path": "stitch-screens/screen-04/code.html",
+    "image_path": "stitch-screens/screen-04/screen.png"
+  }
+,
+  {
+    "id": "screen-05",
+    "zip_name": "stitch (4).zip",
+    "title": "Stitch Screen 5",
+    "has_code": false,
+    "code_path": "stitch-screens/screen-05/code.html",
+    "image_path": "stitch-screens/screen-05/screen.png"
+  }
+,
+  {
+    "id": "screen-06",
+    "zip_name": "stitch (5).zip",
+    "title": "Expert Finder Console",
+    "has_code": true,
+    "code_path": "stitch-screens/screen-06/code.html",
+    "image_path": "stitch-screens/screen-06/screen.png"
+  }
+
+]

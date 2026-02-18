@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import StitchScreens from "./pages/StitchScreens";
 
 const queryClient = new QueryClient();
 const routerBase =
@@ -20,6 +21,7 @@ const App = () => (
       <BrowserRouter basename={routerBase}>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/stitch" element={<StitchScreens />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

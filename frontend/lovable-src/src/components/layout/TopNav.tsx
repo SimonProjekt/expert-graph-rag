@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Activity, Database, FlaskConical, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface TopNavProps {
   health: HealthResponse | null;
@@ -36,6 +37,13 @@ export function TopNav({ health, clearance, onClearanceChange }: TopNavProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        <Link
+          to="/stitch"
+          className="hidden rounded-md border border-border/70 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground sm:inline-flex"
+        >
+          Stitch Screens
+        </Link>
+
         <div className="hidden items-center gap-3 sm:flex">
           <StatusChip ok={health?.llm_available} label="LLM" icon={<FlaskConical className="h-3 w-3" />} />
           <StatusChip ok={health?.openalex_available} label="OpenAlex" icon={<Database className="h-3 w-3" />} />

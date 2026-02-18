@@ -144,7 +144,7 @@ With OpenAI enabled, Ask responses are grounded and formatted as:
 ## Lovable Frontend Connection
 
 This repo is pre-wired so a Lovable-generated frontend can run on the same domain.
-For interview stability, production currently redirects `/app` to `/` (stable Django UI).
+The frontend is served at `/app`, while the Django UI remains available at `/`.
 
 - Backend API remains at `/api/*`
 - Lovable frontend build artifacts are stored in `frontend/static`
@@ -162,6 +162,16 @@ Build/deploy flow:
 # 3) Deploy (prod script auto-builds frontend if lovable-src exists)
 ./scripts/prod_deploy.sh
 ```
+
+Import Stitch multi-screen ZIP sets (one ZIP per screen):
+
+```bash
+./scripts/import_stitch_screens.sh "C:\Users\simon\Downloads\stich ui"
+./scripts/build_lovable_frontend.sh
+```
+
+The imported screens are available in the frontend at `/stitch` (inside `/app` basename:
+`/app/stitch`).
 
 Set API base in Lovable frontend to empty or root-relative paths (recommended):
 

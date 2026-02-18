@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Internal Console - Expert Discovery</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6", // More standard tech blue
+                        "primary-dark": "#1d4ed8",
+                        "background-light": "#f1f5f9",
+                        "background-dark": "#0f172a", // Slate 900
+                        "surface-dark": "#1e293b", // Slate 800
+                        "border-dark": "#334155", // Slate 700
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+                    },
+                    fontSize: {
+                        "xxs": "0.625rem",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }@keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .status-pulse {
+            animation: pulse-green 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-200 font-display h-screen overflow-hidden flex flex-col antialiased selection:bg-primary/30">
+<div class="h-8 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-4 text-xxs font-mono text-slate-400 shrink-0 z-30 select-none">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-emerald-500 status-pulse"></div>
+<span class="text-emerald-500 font-bold uppercase tracking-wider">System Operational</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-slate-500 uppercase">Data Source:</span>
+<span class="text-amber-400 font-bold">SYNTHETIC DEMO</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-slate-500 uppercase">Last Refresh:</span>
+<span class="text-slate-300">14:02:45 UTC</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5 px-2 py-0.5 bg-red-900/30 border border-red-900/50 rounded text-red-400">
+<span class="material-symbols-outlined text-[10px]">lock</span>
+<span class="font-bold tracking-widest">INTERNAL CLEARANCE ONLY</span>
+</div>
+</div>
+</div>
+<header class="flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark px-4 py-2 shrink-0 z-20 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="size-8 bg-primary/10 rounded flex items-center justify-center text-primary border border-primary/20">
+<span class="material-symbols-outlined text-[20px]">radar</span>
+</div>
+<div>
+<h2 class="text-sm font-bold leading-tight tracking-tight text-slate-900 dark:text-white">Expert Discovery</h2>
+<p class="text-[10px] text-slate-500 uppercase tracking-wider">Telecom Intelligence Console</p>
+</div>
+</div>
+<div class="hidden md:flex items-center bg-slate-100 dark:bg-slate-900/50 p-1 rounded border border-slate-200 dark:border-slate-700">
+<a class="px-4 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded transition-colors" href="#">Publications</a>
+<a class="px-4 py-1 text-xs font-medium bg-white dark:bg-slate-700 text-primary dark:text-white shadow-sm rounded border border-slate-200 dark:border-slate-600" href="#">Experts</a>
+<a class="px-4 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded transition-colors" href="#">Patents</a>
+<a class="px-4 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded transition-colors" href="#">Knowledge Graph</a>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+<span class="size-2 rounded-full bg-slate-400"></span>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-300">Project: 6G-AI-RAN</span>
+</div>
+<button class="flex items-center justify-center size-8 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+<div class="size-8 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-inner border border-white/10">JD</div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<aside class="w-72 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0b1120] shrink-0">
+<div class="p-3 flex flex-col gap-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full h-9 pl-9 pr-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-shadow" placeholder="Query knowledge base..." type="text"/>
+<div class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 border border-slate-700 px-1 rounded bg-slate-800">/</div>
+</div>
+<div class="flex bg-slate-100 dark:bg-slate-900 rounded p-0.5 border border-slate-200 dark:border-slate-700">
+<button class="flex-1 py-1 text-[10px] font-bold uppercase tracking-wide rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">All</button>
+<button class="flex-1 py-1 text-[10px] font-bold uppercase tracking-wide rounded text-slate-500 hover:text-slate-900 dark:hover:text-white">Real</button>
+<button class="flex-1 py-1 text-[10px] font-bold uppercase tracking-wide rounded text-slate-500 hover:text-slate-900 dark:hover:text-white">Synthetic</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-3 space-y-6">
+<div class="space-y-2">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-500 px-1">Suggested Internal Queries</h3>
+<div class="flex flex-col gap-1">
+<button class="text-left px-2 py-1.5 rounded text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-primary transition-colors flex items-center gap-2 group">
+<span class="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-primary">history</span>
+                        O-RAN xApp policy conflict
+                    </button>
+<button class="text-left px-2 py-1.5 rounded text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-primary transition-colors flex items-center gap-2 group">
+<span class="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-primary">history</span>
+                        Massive MIMO beamforming AI
+                    </button>
+<button class="text-left px-2 py-1.5 rounded text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-primary transition-colors flex items-center gap-2 group">
+<span class="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-primary">history</span>
+                        Network slicing latency reduction
+                    </button>
+<button class="text-left px-2 py-1.5 rounded text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-primary transition-colors flex items-center gap-2 group">
+<span class="material-symbols-outlined text-[14px] text-slate-400 group-hover:text-primary">trending_up</span>
+                        6G terahertz signal processing
+                    </button>
+</div>
+</div>
+<div class="h-px bg-slate-200 dark:bg-slate-800"></div>
+<div class="space-y-3">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-500 px-1">Active Filters</h3>
+<div class="flex flex-wrap gap-2 px-1">
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
+<span>Score &gt; 80</span>
+<button class="hover:text-red-400 flex"><span class="material-symbols-outlined text-[12px]">close</span></button>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
+<span>Recency: 2Y</span>
+<button class="hover:text-red-400 flex"><span class="material-symbols-outlined text-[12px]">close</span></button>
+</div>
+</div>
+</div>
+<div class="h-px bg-slate-200 dark:bg-slate-800"></div>
+<div class="space-y-4 px-1">
+<div class="space-y-2">
+<div class="flex items-center justify-between group cursor-pointer">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-slate-200">Affiliation Type</h3>
+<span class="material-symbols-outlined text-slate-500 text-[14px]">expand_less</span>
+</div>
+<div class="space-y-1.5">
+<label class="flex items-center gap-2.5 cursor-pointer">
+<input checked="" class="w-3.5 h-3.5 rounded border-slate-500 bg-transparent text-primary focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+<span class="text-xs text-slate-400 hover:text-white transition-colors">Academic (Top 50)</span>
+<span class="ml-auto text-[10px] text-slate-600 font-mono">142</span>
+</label>
+<label class="flex items-center gap-2.5 cursor-pointer">
+<input class="w-3.5 h-3.5 rounded border-slate-500 bg-transparent text-primary focus:ring-offset-0 focus:ring-0" type="checkbox"/>
+<span class="text-xs text-slate-400 hover:text-white transition-colors">Corporate Research</span>
+<span class="ml-auto text-[10px] text-slate-600 font-mono">89</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+<div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/50">
+<button class="w-full py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white border border-transparent hover:border-slate-300 dark:hover:border-slate-700 rounded transition-all">
+                Reset All Filters
+            </button>
+</div>
+</aside>
+<main class="flex-1 flex flex-col bg-slate-100 dark:bg-[#0f172a] relative overflow-hidden">
+<div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-surface-dark/50 backdrop-blur-sm z-10 sticky top-0">
+<div class="flex items-center gap-3">
+<h1 class="text-lg font-bold text-slate-900 dark:text-white">Query Results</h1>
+<span class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-mono text-slate-600 dark:text-slate-400">43 hits</span>
+<span class="text-xs text-slate-500 border-l border-slate-600 pl-3">Context: "Machine Learning" + "Telecom"</span>
+</div>
+<div class="flex items-center gap-2">
+<label class="text-xs text-slate-500">Sort by:</label>
+<select class="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-xs px-2 py-1 focus:outline-none focus:border-primary text-slate-700 dark:text-slate-300">
+<option>Relevance Score (Desc)</option>
+<option>Citation Impact</option>
+<option>Patent Count</option>
+</select>
+<button class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-500">
+<span class="material-symbols-outlined text-[18px]">view_list</span>
+</button>
+<button class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-500">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-4">
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-sm hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+<div class="absolute -left-[1px] top-4 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-r font-mono shadow-sm">#01</div>
+<div class="p-4 pl-5 flex flex-col md:flex-row gap-5">
+<div class="w-full md:w-64 shrink-0 flex gap-4">
+<div class="relative shrink-0">
+<img alt="Dr. Elena Vance Headshot" class="size-14 rounded grayscale group-hover:grayscale-0 transition-all duration-300 object-cover border border-slate-200 dark:border-slate-600" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnFCFNfqyEZo2sJVYbSzvWWtcxXSU04ZxtnPuo19Aq-2jkNaFmBD95MIjTG-k75OThdTikl55aANtYLB6NXDjhrvlpRJfbx9SVnu7YgeIxB8kqPt5YNS1ybulnk-79dvc8shKXrJNobSbBfWmu7SloIUvbhSv8ERiLnH1SNi59Bq3VCk8t-i58fON994p3OVseqbpAv_VXbqPfO_Nn_BYf6RFX2Q0OktnOEs7mSjbERIHmxXJdzNJ8-oukp2lD8qYZAPJmT22suwFm"/>
+<div class="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 border border-slate-200 dark:border-slate-600">
+<img alt="MIT Logo" class="h-3 w-auto" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQaEBeQe02s82-h-W3d-_Bf3_3UNE9NcHMXFU3OefSAIutmoq4iyG5Jr4Ik93IeXIK-h4-uw89Y6qJjLY7s3EgPuOZ0VWpqZ-q_nOFETpeAUYwTXFVAb7hM7H20zIjm_wQq_8L2WI0vC6e-TpJ7nq3d3cnfpCCkz9z0d1XEKJK5CBD5DFsinrJy3fOEf6VkgqnqXlpm_8wizqtmhkDIFJCdRZbw1bhkJHZgFahiI2vQZHCrT7R9-eOI-MxR63oFdWaZlHIJTLtfUCx"/>
+</div>
+</div>
+<div class="min-w-0">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors cursor-pointer truncate">Dr. Elena Vance</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 truncate">Prof. Computer Science</p>
+<p class="text-xs font-medium text-primary dark:text-blue-400 mt-0.5 truncate">MIT CSAIL</p>
+<div class="mt-2 inline-flex items-center px-1.5 py-0.5 rounded border border-emerald-900/30 bg-emerald-900/10 text-emerald-500 text-[10px] font-mono uppercase tracking-wide">
+<span class="size-1.5 bg-emerald-500 rounded-full mr-1.5 animate-pulse"></span>
+                                Real Entity
+                            </div>
+</div>
+</div>
+<div class="flex-1 min-w-0 border-l border-slate-100 dark:border-slate-700/50 pl-0 md:pl-5 md:pr-2">
+<div class="flex items-end justify-between mb-3">
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Suitability Matrix</div>
+<div class="flex items-baseline gap-1">
+<span class="text-2xl font-bold text-slate-900 dark:text-white font-mono">98</span>
+<span class="text-xs text-slate-500">/100</span>
+</div>
+</div>
+<div class="grid grid-cols-5 gap-2">
+<div class="flex flex-col gap-1 group/bar" title="Semantic Match: 95%">
+<div class="h-16 w-full bg-slate-100 dark:bg-slate-800 rounded-sm relative overflow-hidden flex flex-col justify-end">
+<div class="w-full bg-blue-500 group-hover/bar:bg-blue-400 transition-colors" style="height: 95%"></div>
+</div>
+<span class="text-[9px] uppercase font-semibold text-slate-500 text-center truncate">Semantic</span>
+</div>
+<div class="flex flex-col gap-1 group/bar" title="Graph Proximity: 92%">
+<div class="h-16 w-full bg-slate-100 dark:bg-slate-800 rounded-sm relative overflow-hidden flex flex-col justify-end">
+<div class="w-full bg-indigo-500 group-hover/bar:bg-indigo-400 transition-colors" style="height: 92%"></div>
+</div>
+<span class="text-[9px] uppercase font-semibold text-slate-500 text-center truncate">Graph</span>
+</div>
+<div class="flex flex-col gap-1 group/bar" title="Citation Authority: 99%">
+<div class="h-16 w-full bg-slate-100 dark:bg-slate-800 rounded-sm relative overflow-hidden flex flex-col justify-end">
+<div class="w-full bg-emerald-500 group-hover/bar:bg-emerald-400 transition-colors" style="height: 99%"></div>
+</div>
+<span class="text-[9px] uppercase font-semibold text-slate-500 text-center truncate">Citation</span>
+</div>
+<div class="flex flex-col gap-1 group/bar" title="Recency: 80%">
+<div class="h-16 w-full bg-slate-100 dark:bg-slate-800 rounded-sm relative overflow-hidden flex flex-col justify-end">
+<div class="w-full bg-amber-500 group-hover/bar:bg-amber-400 transition-colors" style="height: 80%"></div>
+</div>
+<span class="text-[9px] uppercase font-semibold text-slate-500 text-center truncate">Recency</span>
+</div>
+<div class="flex flex-col gap-1 group/bar" title="Coverage: 88%">
+<div class="h-16 w-full bg-slate-100 dark:bg-slate-800 rounded-sm relative overflow-hidden flex flex-col justify-end">
+<div class="w-full bg-purple-500 group-hover/bar:bg-purple-400 transition-colors" style="height: 88%"></div>
+</div>
+<span class="text-[9px] uppercase font-semibold text-slate-500 text-center truncate">Coverage</span>
+</div>
+</div>
+</div>
+</div>
+<div class="border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/30 px-4 py-3">
+<details class="group/details open" open="">
+<summary class="flex items-center gap-2 cursor-pointer list-none text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 hover:text-primary transition-colors select-none">
+<span class="material-symbols-outlined text-[16px] transition-transform group-open/details:rotate-90">chevron_right</span>
+                            Why this expert?
+                        </summary>
+<div class="mt-2 text-xs text-slate-600 dark:text-slate-300 pl-6 pr-4 leading-relaxed font-mono">
+<span class="text-primary font-bold">MATCH REASONING:</span> Dr. Vance ranks #1 due to high citation velocity in <strong class="text-slate-900 dark:text-white">Large Language Models</strong> and <strong class="text-slate-900 dark:text-white">Transformer Architectures</strong> (24mo window). Her paper "Efficient Attention Mechanisms" has a <span class="text-emerald-500 font-bold">0.94 cosine similarity</span> to your query vector.
+                        </div>
+</details>
+<div class="mt-3 flex justify-end gap-2">
+<button class="px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Add to List</button>
+<button class="px-3 py-1.5 rounded bg-primary text-white text-xs font-medium hover:bg-primary-dark transition-colors shadow-sm">View Full Profile</button>
+</div>
+</div>
+</div>
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-sm hover:border-slate-300 dark:hover:border-slate-500 transition-all shadow-sm">
+<div class="absolute -left-[1px] top-4 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-r font-mono">#02</div>
+<div class="p-4 pl-5 flex flex-col md:flex-row gap-5">
+<div class="w-full md:w-64 shrink-0 flex gap-4">
+<div class="relative shrink-0">
+<img alt="Dr. Marcus Chen Headshot" class="size-14 rounded grayscale group-hover:grayscale-0 transition-all object-cover border border-slate-200 dark:border-slate-600 opacity-90" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbUo2-shL6mg_K4f2OlIX9KkO8QTUSOv71B_1g-phPMSYWQ_ru1KGZWUoexMaT-c46_SUyZK04JHI4uoyO09A1BZF0IJxMPQe80q31-Xdv4A8oa3jmfBQvFeSG7EvYRtiWq8uMDseNXVesCFiS65Hkt6c93rq36lmH8ie5XbpJ9eX8Ytkyy8nEGRdfBBb_rHaQ8nFZIC5hPYuY_RKQ9NbT9vIvLgMb226tAtdiYqBuotP4yrPpQutTBH5b-2JALDFwILnw2-g7WCvc"/>
+<div class="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 border border-slate-200 dark:border-slate-600">
+<span class="material-symbols-outlined text-[12px] text-slate-400">domain</span>
+</div>
+</div>
+<div class="min-w-0">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors cursor-pointer truncate">Dr. Marcus Chen</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 truncate">Senior Research Scientist</p>
+<p class="text-xs font-medium text-primary dark:text-blue-400 mt-0.5 truncate">DeepMind</p>
+<div class="mt-2 inline-flex items-center px-1.5 py-0.5 rounded border border-amber-900/30 bg-amber-900/10 text-amber-500 text-[10px] font-mono uppercase tracking-wide">
+<span class="material-symbols-outlined text-[10px] mr-1">science</span>
+                                Synthetic
+                            </div>
+</div>
+</div>
+<div class="flex-1 min-w-0 border-l border-slate-100 dark:border-slate-700/50 pl-0 md:pl-5 md:pr-2">
+<div class="flex items-end justify-between mb-3">
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Suitability Matrix</div>
+<div class="flex items-baseline gap-1">
+<span class="text-2xl font-bold text-slate-900 dark:text-white font-mono">94</span>
+<span class="text-xs text-slate-500">/100</span>
+</div>
+</div>
+<div class="grid grid-cols-5 gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+<div class="h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden col-span-5 flex">
+<div class="h-full bg-blue-500" style="width: 25%"></div>
+<div class="h-full bg-indigo-500" style="width: 20%"></div>
+<div class="h-full bg-emerald-500" style="width: 30%"></div>
+<div class="h-full bg-amber-500" style="width: 15%"></div>
+<div class="h-full bg-purple-500" style="width: 10%"></div>
+</div>
+<div class="col-span-5 flex justify-between text-[10px] font-mono text-slate-500 pt-1">
+<span>SEM</span>
+<span>GRA</span>
+<span>CIT</span>
+<span>REC</span>
+<span>COV</span>
+</div>
+</div>
+<div class="mt-3 flex gap-4 text-xs">
+<div class="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px] text-emerald-500">trending_up</span>
+                                High Velocity
+                            </div>
+<div class="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px] text-purple-500">hub</span>
+                                Central Node
+                            </div>
+</div>
+</div>
+</div>
+<div class="border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/30 px-4 py-2 flex items-center justify-between">
+<button class="text-xs font-bold text-slate-500 hover:text-primary flex items-center gap-1 uppercase tracking-wide">
+                        View Reasoning <span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<div class="flex gap-2">
+<button class="text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white px-2 py-1">Quick Add</button>
+</div>
+</div>
+</div>
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-sm hover:border-slate-300 dark:hover:border-slate-500 transition-all shadow-sm">
+<div class="absolute -left-[1px] top-4 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-r font-mono">#03</div>
+<div class="p-4 pl-5 flex flex-col md:flex-row gap-5">
+<div class="w-full md:w-64 shrink-0 flex gap-4">
+<div class="relative shrink-0">
+<div class="size-14 rounded bg-slate-800 flex items-center justify-center text-slate-400 font-mono font-bold text-lg border border-slate-700">JS</div>
+<div class="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 border border-slate-200 dark:border-slate-600">
+<span class="material-symbols-outlined text-[12px] text-slate-400">school</span>
+</div>
+</div>
+<div class="min-w-0">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors cursor-pointer truncate">Dr. Julia Symons</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 truncate">Associate Professor</p>
+<p class="text-xs font-medium text-primary dark:text-blue-400 mt-0.5 truncate">Stanford University</p>
+<div class="mt-2 inline-flex items-center px-1.5 py-0.5 rounded border border-emerald-900/30 bg-emerald-900/10 text-emerald-500 text-[10px] font-mono uppercase tracking-wide">
+<span class="size-1.5 bg-emerald-500 rounded-full mr-1.5"></span>
+                                Real Entity
+                            </div>
+</div>
+</div>
+<div class="flex-1 min-w-0 border-l border-slate-100 dark:border-slate-700/50 pl-0 md:pl-5 md:pr-2">
+<div class="flex items-end justify-between mb-3">
+<div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Suitability Matrix</div>
+<div class="flex items-baseline gap-1">
+<span class="text-2xl font-bold text-slate-900 dark:text-white font-mono">89</span>
+<span class="text-xs text-slate-500">/100</span>
+</div>
+</div>
+<div class="grid grid-cols-5 gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+<div class="h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden col-span-5 flex">
+<div class="h-full bg-blue-500" style="width: 20%"></div>
+<div class="h-full bg-indigo-500" style="width: 15%"></div>
+<div class="h-full bg-emerald-500" style="width: 40%"></div>
+<div class="h-full bg-amber-500" style="width: 10%"></div>
+<div class="h-full bg-purple-500" style="width: 15%"></div>
+</div>
+<div class="col-span-5 flex justify-between text-[10px] font-mono text-slate-500 pt-1">
+<span>SEM</span>
+<span>GRA</span>
+<span>CIT</span>
+<span>REC</span>
+<span>COV</span>
+</div>
+</div>
+<div class="mt-3 flex gap-4 text-xs">
+<div class="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px] text-amber-500">verified</span>
+                                Top Authority
+                            </div>
+</div>
+</div>
+</div>
+<div class="border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/30 px-4 py-2 flex items-center justify-between">
+<button class="text-xs font-bold text-slate-500 hover:text-primary flex items-center gap-1 uppercase tracking-wide">
+                        View Reasoning <span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+<div class="flex gap-2">
+<button class="text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white px-2 py-1">Quick Add</button>
+</div>
+</div>
+</div>
+</div>
+<div class="py-1 px-4 text-center bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+<p class="text-[10px] text-slate-400 dark:text-slate-600 font-mono">
+                INTERNAL DEMO ENVIRONMENT - Contains mixture of real and synthetic training data. Do not cite synthetic entities in production reports.
+            </p>
+</div>
+</main>
+<aside class="w-[400px] bg-white dark:bg-[#0f172a] border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-2xl z-20">
+<div class="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-surface-dark">
+<div class="flex items-start justify-between mb-4">
+<div class="flex gap-3">
+<img alt="Dr. Elena Vance Headshot" class="size-12 rounded object-cover border border-slate-200 dark:border-slate-600" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_b9p3-Asp0yL2gLnumEl3s8fs3s2itHgbkhQ_CCBjvJJ48C_qjoMekHCrDpzKOHNc6uokcY6FpNQfD8rjO1llcnv8uDFW4mUQe4jB_CR_CvrgvfX5Kj7xC5Wwd95WzPiuK7ISfFf_QaDN3UMEPwReWYadDsQ7K2G63TOBGeii6qnI8C-sMbL6Q035MXe0zG5q9S-SeyEPxu3V9SkoTNmDTI14lG8pkDHW8bXN_euuQcqmSpW9El-ZL3Q5bS74gdpX5_Gyrjq1cs6A"/>
+<div>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">Dr. Elena Vance</h2>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">ID: EV-8892-MIT</p>
+</div>
+</div>
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-2 mb-4">
+<div class="bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700">
+<div class="text-[10px] text-slate-500 uppercase">H-Index</div>
+<div class="text-sm font-bold text-slate-900 dark:text-white font-mono">42</div>
+</div>
+<div class="bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700">
+<div class="text-[10px] text-slate-500 uppercase">Citations</div>
+<div class="text-sm font-bold text-slate-900 dark:text-white font-mono">12.4k</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary hover:bg-primary-dark text-white text-xs font-bold py-2 rounded transition-colors shadow-sm">
+                    TRACK EXPERT
+                </button>
+<button class="flex-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 text-xs font-bold py-2 rounded transition-colors">
+                    CONTACT
+                </button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-5 space-y-6">
+<div class="bg-slate-50 dark:bg-slate-900 p-3 rounded border border-slate-200 dark:border-slate-800">
+<h3 class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Primary Unit</h3>
+<div class="flex items-center gap-2">
+<div class="size-8 rounded bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px] text-slate-500">apartment</span>
+</div>
+<div>
+<div class="text-sm font-medium text-slate-900 dark:text-white">CSAIL - MIT</div>
+<div class="text-xs text-slate-500">Computer Science and Artificial Intelligence Lab</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2 uppercase tracking-wide">
+<span class="material-symbols-outlined text-primary text-[16px]">article</span>
+                    Select Publications
+                </h3>
+<div class="space-y-3">
+<div class="group cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded -mx-2 transition-colors">
+<h4 class="text-sm font-medium text-slate-800 dark:text-slate-200 leading-snug group-hover:text-primary transition-colors">
+                            Efficient Attention Mechanisms for Transformer Models
+                        </h4>
+<div class="flex items-center gap-3 mt-1.5 font-mono text-[10px]">
+<span class="text-slate-500">NeurIPS '23</span>
+<span class="text-emerald-500 bg-emerald-500/10 px-1 rounded">342 Cites</span>
+<span class="text-slate-500">Q1 Journal</span>
+</div>
+</div>
+<div class="h-px bg-slate-100 dark:bg-slate-800"></div>
+<div class="group cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded -mx-2 transition-colors">
+<h4 class="text-sm font-medium text-slate-800 dark:text-slate-200 leading-snug group-hover:text-primary transition-colors">
+                            Scalable Language Pre-training
+                        </h4>
+<div class="flex items-center gap-3 mt-1.5 font-mono text-[10px]">
+<span class="text-slate-500">ICML '22</span>
+<span class="text-emerald-500 bg-emerald-500/10 px-1 rounded">1.2k Cites</span>
+<span class="text-slate-500">High Impact</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2 uppercase tracking-wide">
+<span class="material-symbols-outlined text-primary text-[16px]">share</span>
+                    Collaborator Cluster
+                </h3>
+<div class="relative w-full h-40 bg-slate-900 rounded border border-slate-700 overflow-hidden flex items-center justify-center">
+<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#475569 1px, transparent 1px); background-size: 10px 10px;"></div>
+<svg class="absolute inset-0 w-full h-full text-slate-600" style="z-index: 0;">
+<line stroke="currentColor" stroke-dasharray="4 2" stroke-width="1" x1="50%" x2="25%" y1="50%" y2="35%"></line>
+<line stroke="currentColor" stroke-dasharray="4 2" stroke-width="1" x1="50%" x2="75%" y1="50%" y2="35%"></line>
+<line stroke="currentColor" stroke-dasharray="4 2" stroke-width="1" x1="50%" x2="35%" y1="50%" y2="75%"></line>
+<line stroke="currentColor" stroke-dasharray="4 2" stroke-width="1" x1="50%" x2="65%" y1="50%" y2="75%"></line>
+</svg>
+<div class="relative z-10 size-8 rounded-full bg-primary border-2 border-slate-900 shadow-lg flex items-center justify-center">
+<img class="size-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpmsSMl1tPS54zwkaSoJD5IekLaPcbX68EMBy4UW103dlrnMaVzMesP1MiT2ZY8cCkRpbJpzakSJ6npXM-WkSx-AWQpYxu5QcjP3vQs2xWJrrfy6VRVBpBgMDRREd2fZf8QrrbbXuwlXWwToItCT6DAdK-zK8b-2IZD84xjTL5hE4fuFgxcMfl-KFUr5MzHBtRU7kYWo_RzVAfICAvaqaiyodRgKVxaNRkGRnlK470l4Ql9K-Yn3omshOn8QsrksezooU3z0whLqd0"/>
+</div>
+<div class="absolute top-[25%] left-[20%] size-6 rounded-full bg-slate-700 border border-slate-500 z-10 overflow-hidden shadow-lg">
+<img class="size-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7JIxFvs5P-f4X9CFwfZReU71KneNexFuNZQj-7OzZLl8uYjwDdHBYr15X63WiNJWfudmlyLzs8s_ZwraU2Xnrq6OAcfRx6Er7A9lvKF8EYwoL9bIIyAoZMZ1S_zLsNghgdODkGFQrXANDgT2zSdQs5g96cwpXLMVLiC0DS3KxFKseFX4Z4exYXEtkyJNEgIw3Q4L_m7izLb0RqKQ57Pi_56ev-vea617wfKBg1LFM3amPTIhAUliN48X--q1GyxZyYUdOMYUb8thS"/>
+</div>
+<div class="absolute top-[25%] right-[20%] size-6 rounded-full bg-purple-900/80 border border-purple-500 z-10 flex items-center justify-center text-[8px] font-bold text-purple-300">PX</div>
+<div class="absolute bottom-[15%] left-[30%] size-6 rounded-full bg-emerald-900/80 border border-emerald-500 z-10 flex items-center justify-center text-[8px] font-bold text-emerald-300">LY</div>
+<div class="absolute bottom-[15%] right-[30%] size-6 rounded-full bg-slate-700 border border-slate-500 z-10 overflow-hidden shadow-lg">
+<img class="size-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRfGeJ2lgvPNTQPBayJrDwg2_tF7Nk5a5EqCpfmsaFmmNRLjKv-erqMS3x_aKsLQsf8nZ7UpTp0t2LQrDvFVY3A_pR85JjYsb_ZLFjaFJLlJzafQXZfJIyBOlRs_B_CkxpDVQs4cB1nSt7mHbVzMTqEi6bLQDHefplmZHYf8JTZ1fND6TJzKQq7jeTBMcK_jlerRMeBGJxfU8nXGPhfE8F3zNa1yDFCuGlmfTO4nZVMTsATslzvxeLLB6MVUbxHJNZmnXLooIXajZd"/>
+</div>
+</div>
+<p class="text-[10px] text-center text-slate-500 mt-2 font-mono">Strong connectivity with DeepMind Research</p>
+</div>
+</div>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-surface-dark">
+<button class="w-full flex items-center justify-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-primary transition-colors uppercase tracking-wide">
+                Expand Knowledge Graph <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</button>
+</div>
+</aside>
+</div>
+
+</body></html>

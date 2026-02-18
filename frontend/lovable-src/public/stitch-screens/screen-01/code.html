@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Expert Finder - Telecom Intelligence Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6", // More technical blue
+                        "primary-dark": "#1d4ed8",
+                        "console-bg": "#0f172a", // Dark slate background
+                        "console-card": "#1e293b", // Lighter slate for cards
+                        "console-border": "#334155", // Border color
+                        "accent": "#0ea5e9", // Sky blue accent
+                        "text-main": "#f8fafc",
+                        "text-muted": "#94a3b8",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        "lg": "0.375rem", // Sharper corners for console feel
+                        "xl": "0.5rem",
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-[#f1f5f9] dark:bg-console-bg font-body text-slate-900 dark:text-text-main min-h-screen flex flex-col antialiased selection:bg-primary selection:text-white">
+<header class="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-console-border bg-white/95 dark:bg-console-bg/95 backdrop-blur-sm">
+<div class="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+<div class="flex items-center gap-3">
+<div class="flex size-8 items-center justify-center rounded bg-primary text-white shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-xl">hub</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold tracking-tight text-slate-900 dark:text-white leading-tight">Expert Finder</span>
+<span class="text-[10px] font-mono uppercase tracking-wider text-text-muted">Research Console v2.1</span>
+</div>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-sm font-medium text-slate-600 hover:text-primary dark:text-slate-300 dark:hover:text-white transition-colors" href="#">Console</a>
+<a class="text-sm font-medium text-slate-600 hover:text-primary dark:text-slate-300 dark:hover:text-white transition-colors" href="#">Graph API</a>
+<a class="text-sm font-medium text-slate-600 hover:text-primary dark:text-slate-300 dark:hover:text-white transition-colors" href="#">Documentation</a>
+</nav>
+<div class="flex items-center gap-3">
+<div class="h-4 w-px bg-gray-200 dark:bg-console-border hidden sm:block"></div>
+<span class="text-xs text-text-muted hidden sm:block">Logged in as <span class="text-white font-mono">user@ericsson.net</span></span>
+<button class="ml-2 flex items-center justify-center rounded p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-console-card transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-grow">
+<section class="relative pt-12 pb-12 lg:pt-16 lg:pb-16 border-b border-gray-200 dark:border-console-border bg-white dark:bg-console-bg">
+<div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col gap-6">
+<div>
+<div class="inline-flex items-center rounded border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-400 mb-4 font-mono">
+                        INTERNAL RESEARCH PROTOTYPE
+                    </div>
+<h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl lg:text-5xl mb-4">
+                        Expert Finder
+                    </h1>
+<h2 class="text-xl font-medium text-primary dark:text-blue-400 max-w-3xl leading-relaxed">
+                        Discovery Telecom Experts and Research Papers Using Hybrid Semantic Retrieval plus Knowledge Graph Reasoning.
+                    </h2>
+</div>
+<div class="prose prose-slate dark:prose-invert max-w-4xl">
+<p class="text-base text-slate-600 dark:text-slate-300 leading-7">
+                        This project explores how internal knowledge and expertise inside large organizations can be discovered using a combination of semantic search and graph-based reasoning. Instead of returning keyword matches, the system retrieves relevant research, identifies domain experts, and explains relationships between them.
+                    </p>
+<p class="text-base text-slate-600 dark:text-slate-300 leading-7 mt-4">
+                        The goal is to improve knowledge discovery, expert identification, and technical insight navigation across complex information environments.
+                    </p>
+</div>
+<div class="mt-4">
+<a class="inline-flex items-center justify-center rounded bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-console-bg transition-all" href="#">
+                        Try the Demo
+                    </a>
+</div>
+</div>
+</div>
+</section>
+<section class="py-12 bg-gray-50 dark:bg-[#0b1120] border-b border-gray-200 dark:border-console-border">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="mb-8">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">What this system does</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary">check_circle</span>
+<h4 class="font-semibold text-slate-900 dark:text-white">Capabilities</h4>
+</div>
+<ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Finds relevant research papers
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Identifies domain experts
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Explains relationships between concepts and authors
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Surfaces non-obvious connections
+                        </li>
+</ul>
+</div>
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-orange-400">warning</span>
+<h4 class="font-semibold text-slate-900 dark:text-white">Current Challenges</h4>
+</div>
+<ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Ranking tradeoffs between semantic vs graph relevance
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            External data inconsistency
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Static ranking weights
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Limited contextual expansion depth
+                        </li>
+</ul>
+</div>
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-6 shadow-sm">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-green-400">upgrade</span>
+<h4 class="font-semibold text-slate-900 dark:text-white">Planned Improvements</h4>
+</div>
+<ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Adaptive ranking
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Feedback learning
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Multi-hop reasoning
+                        </li>
+<li class="flex items-start gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0"></span>
+                            Temporal weighting
+                        </li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section class="py-12 bg-white dark:bg-console-bg border-b border-gray-200 dark:border-console-border">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">How Relevance Works</h3>
+<div class="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-6 border border-slate-200 dark:border-console-border">
+<ul class="space-y-4">
+<li class="flex gap-3 text-sm text-slate-700 dark:text-slate-300 font-mono">
+<span class="font-bold text-slate-900 dark:text-white min-w-[70px]">Papers:</span>
+<span>semantic similarity + query alignment + graph authority + centrality.</span>
+</li>
+<li class="flex gap-3 text-sm text-slate-700 dark:text-slate-300 font-mono">
+<span class="font-bold text-slate-900 dark:text-white min-w-[70px]">Experts:</span>
+<span>semantic evidence + query alignment + recency + topic coverage + graph centrality.</span>
+</li>
+<li class="flex gap-3 text-sm text-slate-700 dark:text-slate-300 font-mono">
+<span class="font-bold text-slate-900 dark:text-white min-w-[70px]">Ask:</span>
+<span>grounded answer from retrieved chunks with citations and recommended experts.</span>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<section class="py-12 bg-gray-50 dark:bg-[#0b1120] border-b border-gray-200 dark:border-console-border">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">2-Minute Tutorial</h3>
+<ol class="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-6">
+<li class="mb-4 ml-6">
+<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+<span class="text-xs text-blue-800 dark:text-blue-300 font-bold">1</span>
+</span>
+<h3 class="flex items-center mb-1 text-sm font-semibold text-gray-900 dark:text-white">Select a telecom-focused query from the examples.</h3>
+</li>
+<li class="mb-4 ml-6">
+<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+<span class="text-xs text-blue-800 dark:text-blue-300 font-bold">2</span>
+</span>
+<h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Start in Papers to inspect relevance and snippets.</h3>
+</li>
+<li class="mb-4 ml-6">
+<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+<span class="text-xs text-blue-800 dark:text-blue-300 font-bold">3</span>
+</span>
+<h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Move to Experts to find ranked researchers and institutions.</h3>
+</li>
+<li class="mb-4 ml-6">
+<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+<span class="text-xs text-blue-800 dark:text-blue-300 font-bold">4</span>
+</span>
+<h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Open Graph to explain relationships between authors, papers, and topics.</h3>
+</li>
+<li class="mb-4 ml-6">
+<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+<span class="text-xs text-blue-800 dark:text-blue-300 font-bold">5</span>
+</span>
+<h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Use Ask for a grounded answer with citations.</h3>
+</li>
+</ol>
+</div>
+</section>
+<section class="py-12 bg-white dark:bg-console-bg border-b border-gray-200 dark:border-console-border">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">Test Mode</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-5">
+<h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Start with Papers</h4>
+<p class="text-xs text-slate-600 dark:text-slate-400 leading-5">
+                        Run one telecom query and validate relevance, snippet quality, and timing.
+                    </p>
+</div>
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-5">
+<h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Switch to Experts</h4>
+<p class="text-xs text-slate-600 dark:text-slate-400 leading-5">
+                        Show ranked experts with score breakdown and why-ranked reasoning.
+                    </p>
+</div>
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-5">
+<h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Open Graph</h4>
+<p class="text-xs text-slate-600 dark:text-slate-400 leading-5">
+                        Click nodes to inspect Author-Paper-Topic paths and explainability.
+                    </p>
+</div>
+<div class="bg-white dark:bg-console-card border border-gray-200 dark:border-console-border rounded-lg p-5">
+<h4 class="font-bold text-slate-900 dark:text-white text-sm mb-2">Finish with Ask</h4>
+<p class="text-xs text-slate-600 dark:text-slate-400 leading-5">
+                        Generate a concise answer with citations and recommended experts.
+                    </p>
+</div>
+</div>
+</div>
+</section>
+<section class="py-12 bg-gray-50 dark:bg-[#0b1120]">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Try These Telecom Queries</h3>
+<p class="text-sm text-slate-600 dark:text-slate-400 mb-6">Click any query to jump directly into the interactive workspace.</p>
+<div class="flex flex-col gap-3">
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    federated learning for RAN optimization in 5G
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    network slicing reliability in 5G core
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    O-RAN xApp policy optimization with reinforcement learning
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    core network anomaly detection with graph neural networks
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    energy efficient base station sleep control
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    closed-loop RAN scheduling with multi-agent AI
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    knowledge graph retrieval for telecom incident triage
+                </button>
+<button class="w-full text-left bg-blue-50 hover:bg-blue-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-blue-100 dark:border-console-border rounded px-4 py-3 text-sm text-primary dark:text-blue-400 font-medium transition-colors font-mono">
+                    open RAN multi-vendor orchestration reliability
+                </button>
+</div>
+</div>
+</section>
+<section class="py-12 bg-white dark:bg-console-bg border-t border-gray-200 dark:border-console-border">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">Seeded Trending Articles</h3>
+<div class="space-y-6">
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">EExApp: GNN-Based Reinforcement Learning for Radio Unit Energy Optimization in 5G O-RAN</h4>
+<p class="text-xs text-slate-500 mt-1">2026-02-09</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">SAGE-5GC: Security-Aware Guidelines for Evaluating Anomaly Detection in the 5G Core Network</h4>
+<p class="text-xs text-slate-500 mt-1">2026-02-03</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">Efficient Self-Learning and Model Versioning for AI-native O-RAN Edge</h4>
+<p class="text-xs text-slate-500 mt-1">2026-01-24</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">Interoperable rApp/xApp Control over O-RAN for Mobility-aware Dynamic Spectrum Allocation</h4>
+<p class="text-xs text-slate-500 mt-1">2026-01-24</p>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">Seeded Experts</h3>
+<div class="space-y-6">
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Tommaso Melodia</h4>
+<p class="text-xs text-slate-500 mt-1">unknown</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Michele Polese</h4>
+<p class="text-xs text-slate-500 mt-1">unknown</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Leonardo Bonati</h4>
+<p class="text-xs text-slate-500 mt-1">unknown</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Anastasios Giannopoulos</h4>
+<p class="text-xs text-slate-500 mt-1">National Technical University of Athens</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Salvatore D'Oro</h4>
+<p class="text-xs text-slate-500 mt-1">unknown</p>
+</div>
+<div class="group cursor-pointer">
+<h4 class="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Panagiotis K. Gkonis</h4>
+<p class="text-xs text-slate-500 mt-1">National and Kapodistrian University of Athens</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<footer aria-labelledby="footer-heading" class="bg-white dark:bg-console-bg border-t border-gray-200 dark:border-console-border py-8">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="text-xs text-slate-500 dark:text-slate-500">
+            © 2026 Expert Finder Internal Tool. All rights reserved.
+        </div>
+<div class="text-xs text-slate-500 dark:text-slate-500 font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded">
+             DISCLAIMER: This system uses synthetic data for demonstration and testing purposes.
+        </div>
+</div>
+</footer>
+
+</body></html>
